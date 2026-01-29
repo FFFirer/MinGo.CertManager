@@ -38,6 +38,13 @@
                             </div>
                         </div>
 
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <InputCheckbox class="form-check-input" @bind-Value="useStaging" />
+                                <label class="form-check-label">使用Let's Encrypt测试环境</label>
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
                             @if (isSubmitting)
                             {
@@ -97,6 +104,7 @@
                                 <tr>
                                     <th>域名</th>
                                     <th>状态</th>
+                                    <th>ACME状态</th>
                                     <th>申请时间</th>
                                     <th>过期时间</th>
                                     <th>操作</th>
@@ -131,6 +139,13 @@
                                                 case CertificateStatus.Failed:
                                                     <span class="badge bg-dark">失败</span>
                                                     break;
+                                            }
+                                        </td>
+                                        <td>
+                                            @GetAcmeStatusText(cert.AcmeStatus)
+                                            @if (!string.IsNullOrEmpty(cert.AcmeStatusMessage))
+                                            {
+                                                <small class="text-muted d-block">@cert.AcmeStatusMessage</small>
                                             }
                                         </td>
                                         <td>@cert.IssuedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
@@ -208,6 +223,7 @@
     private Certificate? selectedCertificate;
     private string exportFormat = "Pfx";
     private string exportPassword = string.Empty;
+    private bool useStaging = false;
 
     private class NewCertificateModel
     {
@@ -220,6 +236,24 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadCertificates();
+    }
+
+    private string GetAcmeStatusText(AcmeProcessStatus status)
+    {
+        return status switch
+        {
+            AcmeProcessStatus.Initializing => "初始化",
+            AcmeProcessStatus.CreatingAccount => "创建账户",
+            AcmeProcessStatus.CreatingOrder => "创建订单",
+            AcmeProcessStatus.ProcessingAuthorization => "处理授权",
+            AcmeProcessStatus.CreatingDnsRecord => "创建DNS记录",
+            AcmeProcessStatus.WaitingDnsPropagation => "等待DNS传播",
+            AcmeProcessStatus.ValidatingChallenge => "验证挑战",
+            AcmeProcessStatus.GeneratingCertificate => "生成证书",
+            AcmeProcessStatus.Completed => "已完成",
+            AcmeProcessStatus.Failed => "失败",
+            _ => "未知"
+        };
     }
 
     private async Task LoadCertificates()
@@ -247,7 +281,8 @@
             await CertificateService.RequestCertificateAsync(
                 newCertificateModel.Domain,
                 newCertificateModel.IsWildcard,
-                dnsProvider);
+                dnsProvider,
+                useStaging);
             await LoadCertificates();
             newCertificateModel = new NewCertificateModel();
         }

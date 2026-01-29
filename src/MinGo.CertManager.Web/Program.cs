@@ -29,6 +29,7 @@ try
     builder.Services.AddControllers();
     builder.Services.AddRazorPages();
     builder.Services.AddServerSideBlazor();
+    builder.Services.AddHttpClient();
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -38,6 +39,7 @@ try
     builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
     builder.Services.AddScoped<ICertificateService, CertificateService>();
     builder.Services.AddScoped<IDnsValidationService, AliyunDnsValidationService>();
+    builder.Services.AddScoped<IAcmeService, AcmeService>();
 
     builder.Services.AddQuartz(q =>
     {
@@ -50,6 +52,10 @@ try
     builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
     var app = builder.Build();
+
+    var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    dbContext.Database.Migrate();
 
     if (!app.Environment.IsDevelopment())
     {

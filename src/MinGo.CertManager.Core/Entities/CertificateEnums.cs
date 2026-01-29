@@ -15,3 +15,17 @@ public enum CertificateFormat
     Pem = 1,
     Crt = 2
 }
+
+public enum AcmeProcessStatus
+{
+    Initializing = 0,
+    CreatingAccount = 1,
+    CreatingOrder = 2,
+    ProcessingAuthorization = 3,
+    CreatingDnsRecord = 4,
+    WaitingDnsPropagation = 5,
+    ValidatingChallenge = 6,
+    GeneratingCertificate = 7,
+    Completed = 8,
+    Failed = 9
+}

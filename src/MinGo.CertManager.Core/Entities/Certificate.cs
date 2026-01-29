@@ -8,6 +8,8 @@ public class Certificate
     public string Domain { get; set; } = string.Empty;
     public bool IsWildcard { get; set; }
     public CertificateStatus Status { get; set; }
+    public AcmeProcessStatus AcmeStatus { get; set; }
+    public string? AcmeStatusMessage { get; set; }
     public DateTime IssuedAt { get; set; }
     public DateTime ExpiresAt { get; set; }
     public string CertificateContent { get; set; } = string.Empty;
