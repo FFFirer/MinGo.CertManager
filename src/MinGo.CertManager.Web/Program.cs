@@ -11,45 +11,70 @@ using MinGo.CertManager.Infrastructure.Quartz;
 using MinGo.CertManager.Infrastructure.Repositories;
 using MinGo.CertManager.Infrastructure.Services;
 using Quartz;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .CreateLogger();
 
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("MinGo.CertManager.Infrastructure")));
-
-builder.Services.AddScoped<ICertificateRepository, CertificateRepository>();
-builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
-builder.Services.AddScoped<ICertificateService, CertificateService>();
-builder.Services.AddScoped<IDnsValidationService, AliyunDnsValidationService>();
-
-builder.Services.AddQuartz(q =>
+try
 {
-    q.SchedulerId = "MinGo-CertManager-Scheduler";
-    q.SchedulerName = "MinGo CertManager Scheduler";
-    q.UseSimpleTypeLoader();
-    q.UseInMemoryStore();
-});
+    Log.Information("Starting MinGo.CertManager.Web application");
 
-builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+    var builder = WebApplication.CreateBuilder(args);
 
-var app = builder.Build();
+    builder.Host.UseSerilog();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
+    builder.Services.AddControllers();
+    builder.Services.AddRazorPages();
+    builder.Services.AddServerSideBlazor();
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"),
+            b => b.MigrationsAssembly("MinGo.CertManager.Infrastructure")));
+
+    builder.Services.AddScoped<ICertificateRepository, CertificateRepository>();
+    builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
+    builder.Services.AddScoped<ICertificateService, CertificateService>();
+    builder.Services.AddScoped<IDnsValidationService, AliyunDnsValidationService>();
+
+    builder.Services.AddQuartz(q =>
+    {
+        q.SchedulerId = "MinGo-CertManager-Scheduler";
+        q.SchedulerName = "MinGo CertManager Scheduler";
+        q.UseSimpleTypeLoader();
+        q.UseInMemoryStore();
+    });
+
+    builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
+    var app = builder.Build();
+
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseExceptionHandler("/Error");
+        app.UseHsts();
+    }
+
+    app.UseHttpsRedirection();
+    app.UseStaticFiles();
+
+    app.UseRouting();
+
+    app.MapControllers();
+    app.MapBlazorHub();
+    app.MapFallbackToPage("/_Host");
+
+    Log.Information("Application started successfully");
+
+    app.Run();
 }
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
-
-app.Run();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

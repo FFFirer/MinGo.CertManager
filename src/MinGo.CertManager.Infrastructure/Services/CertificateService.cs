@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Infrastructure.Repositories;
+using Microsoft.Extensions.Logging;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
@@ -32,17 +33,22 @@ public class CertificateService : ICertificateService
 {
     private readonly ICertificateRepository _certificateRepository;
     private readonly IDnsValidationService _dnsValidationService;
+    private readonly ILogger<CertificateService> _logger;
 
     public CertificateService(
         ICertificateRepository certificateRepository,
-        IDnsValidationService dnsValidationService)
+        IDnsValidationService dnsValidationService,
+        ILogger<CertificateService> logger)
     {
         _certificateRepository = certificateRepository;
         _dnsValidationService = dnsValidationService;
+        _logger = logger;
     }
 
     public async Task<Certificate> RequestCertificateAsync(string domain, bool isWildcard, DnsProvider dnsProvider)
     {
+        _logger.LogInformation("开始申请证书: Domain={Domain}, IsWildcard={IsWildcard}", domain, isWildcard);
+
         var certificate = new Certificate
         {
             Id = Guid.NewGuid(),
@@ -55,14 +61,19 @@ public class CertificateService : ICertificateService
 
         try
         {
+            _logger.LogInformation("生成RSA密钥对: CertificateId={CertificateId}", certificate.Id);
             var keyPair = GenerateKeyPair();
-            
+
             var acmeChallenge = $"_acme-challenge.{domain}";
             var acmeValue = GenerateAcmeChallengeValue();
-            
+
+            _logger.LogInformation("创建DNS TXT记录: Domain={Domain}, Record={Record}, Value={Value}", domain, acmeChallenge, acmeValue);
             await _dnsValidationService.CreateTxtRecordAsync(domain, acmeChallenge, acmeValue);
+
+            _logger.LogInformation("等待DNS传播: Delay=5秒");
             await Task.Delay(5000);
 
+            _logger.LogInformation("模拟ACME证书颁发: CertificateId={CertificateId}", certificate.Id);
             var (certContent, certChain) = await SimulateAcmeCertificateIssuance(domain, isWildcard, keyPair);
 
             certificate.CertificateContent = certContent;
@@ -73,11 +84,13 @@ public class CertificateService : ICertificateService
             certificate.Status = CertificateStatus.Active;
             certificate.UpdatedAt = DateTime.UtcNow;
 
+            _logger.LogInformation("证书申请成功: CertificateId={CertificateId}, ExpiresAt={ExpiresAt}", certificate.Id, certificate.ExpiresAt);
             await _certificateRepository.AddAsync(certificate);
             return certificate;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "证书申请失败: CertificateId={CertificateId}, Domain={Domain}", certificate.Id, domain);
             certificate.Status = CertificateStatus.Failed;
             certificate.UpdatedAt = DateTime.UtcNow;
             await _certificateRepository.AddAsync(certificate);
@@ -87,11 +100,17 @@ public class CertificateService : ICertificateService
 
     public async Task<Certificate> RenewCertificateAsync(Guid certificateId)
     {
+        _logger.LogInformation("开始续签证书: CertificateId={CertificateId}", certificateId);
+
         var existingCertificate = await _certificateRepository.GetByIdAsync(certificateId);
         if (existingCertificate == null)
         {
+            _logger.LogWarning("证书不存在: CertificateId={CertificateId}", certificateId);
             throw new ArgumentException("Certificate not found", nameof(certificateId));
         }
+
+        _logger.LogInformation("证书信息: Domain={Domain}, IsWildcard={IsWildcard}, Status={Status}",
+            existingCertificate.Domain, existingCertificate.IsWildcard, existingCertificate.Status);
 
         var dnsProvider = await GetDefaultDnsProvider();
         return await RequestCertificateAsync(existingCertificate.Domain, existingCertificate.IsWildcard, dnsProvider);
@@ -99,19 +118,33 @@ public class CertificateService : ICertificateService
 
     public async Task<byte[]> ExportCertificateAsync(Guid certificateId, CertificateFormat format, string? password = null)
     {
+        _logger.LogInformation("导出证书: CertificateId={CertificateId}, Format={Format}", certificateId, format);
+
         var certificate = await _certificateRepository.GetByIdAsync(certificateId);
         if (certificate == null)
         {
+            _logger.LogWarning("证书不存在: CertificateId={CertificateId}", certificateId);
             throw new ArgumentException("Certificate not found", nameof(certificateId));
         }
 
-        return format switch
+        try
         {
-            CertificateFormat.Pfx => ExportToPfx(certificate.CertificateContent, certificate.PrivateKey, password),
-            CertificateFormat.Pem => ExportToPem(certificate.CertificateContent, certificate.PrivateKey),
-            CertificateFormat.Crt => ExportToCrt(certificate.CertificateContent),
-            _ => throw new ArgumentException("Unsupported format", nameof(format))
-        };
+            var result = format switch
+            {
+                CertificateFormat.Pfx => ExportToPfx(certificate.CertificateContent, certificate.PrivateKey, password),
+                CertificateFormat.Pem => ExportToPem(certificate.CertificateContent, certificate.PrivateKey),
+                CertificateFormat.Crt => ExportToCrt(certificate.CertificateContent),
+                _ => throw new ArgumentException("Unsupported format", nameof(format))
+            };
+
+            _logger.LogInformation("证书导出成功: CertificateId={CertificateId}, Format={Format}", certificateId, format);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "证书导出失败: CertificateId={CertificateId}, Format={Format}", certificateId, format);
+            throw;
+        }
     }
 
     private AsymmetricCipherKeyPair GenerateKeyPair()
@@ -143,14 +176,14 @@ public class CertificateService : ICertificateService
         var certGenerator = new X509V3CertificateGenerator();
         var certName = new X509Name($"CN={domain}");
         var serialNumber = new BigInteger(DateTime.UtcNow.Ticks.ToString());
-        
+
         certGenerator.SetSerialNumber(serialNumber);
         certGenerator.SetSubjectDN(certName);
         certGenerator.SetIssuerDN(certName);
         certGenerator.SetNotBefore(DateTime.UtcNow.Date);
         certGenerator.SetNotAfter(DateTime.UtcNow.AddDays(90));
         certGenerator.SetPublicKey(keyPair.Public);
-        
+
         certGenerator.AddExtension(
             X509Extensions.BasicConstraints.Id,
             true,
@@ -177,20 +210,20 @@ public class CertificateService : ICertificateService
         var pemWriter = new PemWriter(stringWriter);
         pemWriter.WriteObject(certificate);
         pemWriter.Writer.Flush();
-        
+
         return (stringWriter.ToString(), stringWriter.ToString());
     }
 
     private byte[] ExportToPfx(string certContent, string privateKey, string? password)
     {
         var store = new Pkcs12StoreBuilder().Build();
-        
+
         var certParser = new X509CertificateParser();
         var cert = certParser.ReadCertificate(Encoding.ASCII.GetBytes(certContent));
-        
+
         var keyPairParser = new PemReader(new StringReader(privateKey));
         var keyPair = (AsymmetricCipherKeyPair)keyPairParser.ReadObject();
-        
+
         store.SetKeyEntry(
             "certificate",
             new AsymmetricKeyEntry(keyPair.Private),

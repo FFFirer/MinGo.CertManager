@@ -5,6 +5,7 @@
 @inject ICertificateRepository CertificateRepository
 @inject ICertificateService CertificateService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
 <PageTitle>证书管理</PageTitle>
 
@@ -288,16 +289,15 @@
                 _ => CertificateFormat.Pfx
             };
 
-            var data = await CertificateService.ExportCertificateAsync(
-                selectedCertificate.Id,
-                format,
-                string.IsNullOrEmpty(exportPassword) ? null : exportPassword);
+            var url = $"/api/certificates/download/{selectedCertificate.Id}?format={format}";
+            if (!string.IsNullOrEmpty(exportPassword))
+            {
+                url += $"&password={Uri.EscapeDataString(exportPassword)}";
+            }
 
             var fileName = $"{selectedCertificate.Domain}.{format.ToString().ToLower()}";
-            
-            using var stream = new MemoryStream(data);
-            using var fileStream = new FileStream(fileName, FileMode.Create);
-            await stream.CopyToAsync(fileStream);
+
+            await JS.InvokeVoidAsync("downloadFile", new object[] { url, fileName });
 
             HideExportDialog();
         }
