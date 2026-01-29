@@ -7,12 +7,14 @@ using MinGo.CertManager.Core.Constants;
 using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Infrastructure.Repositories;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Net.Http;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
+using MinGo.CertManager.Infrastructure.Configuration;
 
 namespace MinGo.CertManager.Infrastructure.Services;
 
@@ -29,17 +31,20 @@ public class CertificateService : ICertificateService
     private readonly IAcmeService _acmeService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<CertificateService> _logger;
+    private readonly CertificateSettings _certificateSettings;
 
     public CertificateService(
         ICertificateRepository certificateRepository,
         IAcmeService acmeService,
         IHttpClientFactory httpClientFactory,
-        ILogger<CertificateService> logger)
+        ILogger<CertificateService> logger,
+        IOptions<CertificateSettings> certificateSettings)
     {
         _certificateRepository = certificateRepository;
         _acmeService = acmeService;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _certificateSettings = certificateSettings.Value;
     }
 
     public async Task<Certificate> RequestCertificateAsync(string domain, bool isWildcard, DnsProvider dnsProvider, bool useStaging = false)
@@ -65,12 +70,14 @@ public class CertificateService : ICertificateService
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingAccount, "创建ACME账户");
 
             var httpClient = _httpClientFactory.CreateClient();
-            var dnsService = new AliyunDnsService(
-                httpClient,
-                _logger,
-                dnsProvider.AccessKeyId,
-                dnsProvider.AccessKeySecret,
-                dnsProvider.RegionId);
+            var dnsSettings = new AliyunDnsSettings
+            {
+                AccessKeyId = dnsProvider.AccessKeyId,
+                AccessKeySecret = dnsProvider.AccessKeySecret,
+                RegionId = dnsProvider.RegionId
+            };
+            var dnsService = new AliyunDnsService(httpClient, _logger,
+                Microsoft.Extensions.Options.Options.Create(dnsSettings));
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingOrder, "创建ACME订单");
 
@@ -82,7 +89,7 @@ public class CertificateService : ICertificateService
             certificate.PrivateKey = certificateResult.PrivateKeyPem;
             certificate.CertificateChain = certificateResult.CertificateChainPem;
             certificate.IssuedAt = DateTime.UtcNow;
-            certificate.ExpiresAt = DateTime.UtcNow.AddDays(CertificateConstants.CertificateValidityDays);
+            certificate.ExpiresAt = DateTime.UtcNow.AddDays(_certificateSettings.ValidityDays);
             certificate.Status = CertificateStatus.Active;
             certificate.UpdatedAt = DateTime.UtcNow;
 

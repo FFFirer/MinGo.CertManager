@@ -5,8 +5,10 @@ using System.Threading.Tasks;
 using Certes;
 using Certes.Acme;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MinGo.CertManager.Core.Constants;
 using MinGo.CertManager.Core.Entities;
+using MinGo.CertManager.Infrastructure.Configuration;
 
 namespace MinGo.CertManager.Infrastructure.Services;
 
@@ -32,18 +34,17 @@ public enum AcmeEnvironment
 public class AcmeService : IAcmeService
 {
     private readonly ILogger<AcmeService> _logger;
-
-    private static readonly Uri LetEncryptProductionUri = AcmeConstants.LetsEncryptProductionUri;
-    private static readonly Uri LetEncryptStagingUri = AcmeConstants.LetsEncryptStagingUri;
+    private readonly AcmeSettings _acmeSettings;
 
     private AcmeContext? _acmeContext;
     private IKey? _accountKey;
     private readonly Dictionary<string, IOrderContext> _orders = new();
     private readonly Dictionary<string, IAuthorizationContext> _authorizations = new();
 
-    public AcmeService(ILogger<AcmeService> logger)
+    public AcmeService(ILogger<AcmeService> logger, IOptions<AcmeSettings> acmeSettings)
     {
         _logger = logger;
+        _acmeSettings = acmeSettings.Value;
     }
 
     public async Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false)
@@ -53,14 +54,15 @@ public class AcmeService : IAcmeService
 
         try
         {
-            var acmeUri = useStaging ? LetEncryptStagingUri : LetEncryptProductionUri;
+            var acmeUri = useStaging ? new Uri(_acmeSettings.LetsEncryptStagingUrl) : new Uri(_acmeSettings.LetsEncryptProductionUrl);
             _logger.LogInformation("连接到ACME服务器: {AcmeUri}", acmeUri);
 
             _acmeContext = new AcmeContext(acmeUri);
             _logger.LogInformation("创建新账户");
 
             _accountKey = KeyFactory.NewKey(KeyAlgorithm.ES256);
-            var account = await _acmeContext.NewAccount(new[] { AcmeConstants.DefaultAccountEmail }, true);
+            var accountEmail = string.IsNullOrEmpty(_acmeSettings.AccountEmail) ? AcmeConstants.DefaultAccountEmail : _acmeSettings.AccountEmail;
+            var account = await _acmeContext.NewAccount(new[] { $"mailto:{accountEmail}" }, true);
 
             _logger.LogInformation("账户创建成功: AccountId={AccountId}", account.Location);
 

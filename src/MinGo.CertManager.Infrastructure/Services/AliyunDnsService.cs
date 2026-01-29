@@ -7,7 +7,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MinGo.CertManager.Core.Constants;
+using MinGo.CertManager.Infrastructure.Configuration;
 using System.Globalization;
 
 namespace MinGo.CertManager.Infrastructure.Services;
@@ -22,22 +24,16 @@ public class AliyunDnsService : IAliyunDnsService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
-    private readonly string _accessKeyId;
-    private readonly string _accessKeySecret;
-    private readonly string _regionId;
+    private readonly AliyunDnsSettings _settings;
 
     public AliyunDnsService(
         HttpClient httpClient,
         ILogger logger,
-        string accessKeyId,
-        string accessKeySecret,
-        string regionId = "cn-hangzhou")
+        IOptions<AliyunDnsSettings> settings)
     {
         _httpClient = httpClient;
         _logger = logger;
-        _accessKeyId = accessKeyId;
-        _accessKeySecret = accessKeySecret;
-        _regionId = regionId;
+        _settings = settings.Value;
     }
 
     public async Task CreateTxtRecordAsync(string domain, string recordName, string value)
@@ -68,24 +64,24 @@ public class AliyunDnsService : IAliyunDnsService
 
     public async Task DeleteTxtRecordAsync(string domain, string recordName, string value)
     {
-        _logger.LogInformation("删除阿里云DNS TXT记录: Domain={Domain}, Record={Record}, Value={Value}", domain, recordName, value);
+        _logger.LogInformation("删除阿里云DNS TXT记录: Domain={Domain}, Record={Record}", domain, recordName);
+
+        var recordId = await GetRecordIdAsync(domain, recordName, value);
+        if (string.IsNullOrEmpty(recordId))
+        {
+            _logger.LogWarning("未找到DNS记录: Domain={Domain}, Record={Record}", domain, recordName);
+            return;
+        }
+
+        var parameters = new Dictionary<string, string>
+        {
+            { "Action", "DeleteDomainRecord" },
+            { "RecordId", recordId }
+        };
 
         try
         {
-            var recordId = await GetRecordIdAsync(domain, recordName, value);
-            if (recordId == null)
-            {
-                _logger.LogWarning("未找到DNS记录: Domain={Domain}, Record={Record}", domain, recordName);
-                return;
-            }
-
-            var parameters = new Dictionary<string, string>
-            {
-                { "Action", "DeleteDomainRecord" },
-                { "RecordId", recordId }
-            };
-
-            await SendRequestAsync(parameters);
+            var response = await SendRequestAsync(parameters);
             _logger.LogInformation("阿里云DNS TXT记录删除成功: Domain={Domain}, Record={Record}", domain, recordName);
         }
         catch (Exception ex)
@@ -95,29 +91,39 @@ public class AliyunDnsService : IAliyunDnsService
         }
     }
 
-    private async Task<string?> GetRecordIdAsync(string domain, string recordName, string value)
+    private async Task<string> GetRecordIdAsync(string domain, string recordName, string value)
     {
         var parameters = new Dictionary<string, string>
         {
             { "Action", "DescribeDomainRecords" },
             { "DomainName", domain },
+            { "RRKeyWord", recordName },
             { "Type", "TXT" },
-            { "RRKeyWord", recordName }
+            { "ValueKeyWord", value }
         };
 
-        var response = await SendRequestAsync(parameters);
-        var jsonDoc = JsonDocument.Parse(response);
-        var records = jsonDoc.RootElement.GetProperty("DomainRecords").GetProperty("Record");
-
-        foreach (var record in records.EnumerateArray())
+        try
         {
-            if (record.GetProperty("Value").GetString() == value)
-            {
-                return record.GetProperty("RecordId").GetString();
-            }
-        }
+            var response = await SendRequestAsync(parameters);
+            var jsonDoc = JsonDocument.Parse(response);
+            var records = jsonDoc.RootElement.GetProperty("DomainRecords").GetProperty("Record").EnumerateArray();
 
-        return null;
+            foreach (var record in records)
+            {
+                if (record.GetProperty("RR").GetString() == recordName &&
+                    record.GetProperty("Value").GetString() == value)
+                {
+                    return record.GetProperty("RecordId").GetString();
+                }
+            }
+
+            return string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询DNS记录失败: Domain={Domain}, Record={Record}", domain, recordName);
+            return string.Empty;
+        }
     }
 
     private async Task<string> SendRequestAsync(Dictionary<string, string> parameters)
@@ -127,7 +133,7 @@ public class AliyunDnsService : IAliyunDnsService
 
         parameters["Format"] = "JSON";
         parameters["Version"] = AliyunDnsConstants.ApiVersion;
-        parameters["AccessKeyId"] = _accessKeyId;
+        parameters["AccessKeyId"] = _settings.AccessKeyId;
         parameters["SignatureMethod"] = "HMAC-SHA1";
         parameters["SignatureVersion"] = "1.0";
         parameters["SignatureNonce"] = nonce;
@@ -147,7 +153,7 @@ public class AliyunDnsService : IAliyunDnsService
         var canonicalizedQueryString = string.Join("&", sortedParams.Select(p => $"{PercentEncode(p.Key)}={PercentEncode(p.Value)}"));
         var stringToSign = $"{method.ToUpperInvariant()}&{PercentEncode("/")}&{PercentEncode(canonicalizedQueryString)}";
 
-        var key = Encoding.UTF8.GetBytes(_accessKeySecret + "&");
+        var key = Encoding.UTF8.GetBytes(_settings.AccessKeySecret + "&");
         var hmac = new HMACSHA1(key);
         var signatureBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(stringToSign));
         return Convert.ToBase64String(signatureBytes);
@@ -163,9 +169,29 @@ public class AliyunDnsService : IAliyunDnsService
 
     private string PercentEncode(string value)
     {
-        return Uri.EscapeDataString(value)
-            .Replace("+", "%20")
-            .Replace("*", "%2A")
-            .Replace("%7E", "~");
+        var reservedChars = new char[] { '!', '*', '\'', '(', ')', ';', ':', '@', '&', '=', '+', '$', ',', '/', '?', '%', '#', '[', ']' };
+        var result = new StringBuilder();
+
+        foreach (var c in value)
+        {
+            if (c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '~' || c == '.')
+            {
+                result.Append(c);
+            }
+            else if (c == ' ')
+            {
+                result.Append("%20");
+            }
+            else
+            {
+                var bytes = Encoding.UTF8.GetBytes(new[] { (char)c });
+                foreach (var b in bytes)
+                {
+                    result.Append($"%{b:X2}");
+                }
+            }
+        }
+
+        return result.ToString();
     }
 }

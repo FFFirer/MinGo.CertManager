@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\MinGo.CertManager.Application\MinGo.CertManager.Application.csproj" />
@@ -22,6 +22,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>e44603fe-af21-4a86-9ff9-731cc1423d3b</UserSecretsId>
   </PropertyGroup>
 
 </Project>

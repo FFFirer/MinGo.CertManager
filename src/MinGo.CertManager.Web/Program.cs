@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MinGo.CertManager.Infrastructure.Configuration;
 using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Jobs;
 using MinGo.CertManager.Infrastructure.Quartz;
@@ -41,10 +42,20 @@ try
     builder.Services.AddScoped<IDnsValidationService, AliyunDnsValidationService>();
     builder.Services.AddScoped<IAcmeService, AcmeService>();
 
+    builder.Services.Configure<AcmeSettings>(
+        builder.Configuration.GetSection(AcmeSettings.SectionName));
+    builder.Services.Configure<CertificateSettings>(
+        builder.Configuration.GetSection(CertificateSettings.SectionName));
+    builder.Services.Configure<AliyunDnsSettings>(
+        builder.Configuration.GetSection(AliyunDnsSettings.SectionName));
+    builder.Services.Configure<QuartzSettings>(
+        builder.Configuration.GetSection(QuartzSettings.SectionName));
+
     builder.Services.AddQuartz(q =>
     {
-        q.SchedulerId = "MinGo-CertManager-Scheduler";
-        q.SchedulerName = "MinGo CertManager Scheduler";
+        var quartzSettings = builder.Configuration.GetSection(QuartzSettings.SectionName).Get<QuartzSettings>();
+        q.SchedulerId = quartzSettings?.SchedulerInstanceId ?? "MinGo-CertManager-Scheduler";
+        q.SchedulerName = quartzSettings?.SchedulerName ?? "MinGo CertManager Scheduler";
         q.UseSimpleTypeLoader();
         q.UseInMemoryStore();
     });
