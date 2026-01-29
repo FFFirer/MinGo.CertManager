@@ -1,0 +1,340 @@
+@page "/certificates"
+@using MinGo.CertManager.Core.Entities
+@using MinGo.CertManager.Infrastructure.Repositories
+@using MinGo.CertManager.Infrastructure.Services
+@inject ICertificateRepository CertificateRepository
+@inject ICertificateService CertificateService
+@inject NavigationManager NavigationManager
+
+<PageTitle>证书管理</PageTitle>
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>证书管理</h2>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">申请新证书</h5>
+                    <EditForm Model="@newCertificateModel" OnValidSubmit="@HandleSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">域名</label>
+                            <InputText class="form-control" @bind-Value="newCertificateModel.Domain" />
+                            <ValidationMessage For="@(() => newCertificateModel.Domain)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <InputCheckbox class="form-check-input" @bind-Value="newCertificateModel.IsWildcard" />
+                                <label class="form-check-label">泛域名 (*.domain.com)</label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span>申请中...</span>
+                            }
+                            else
+                            {
+                                <span>申请证书</span>
+                            }
+                        </button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">查询条件</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">证书状态</label>
+                            <InputSelect class="form-select" @bind-Value="filterStatus">
+                                <option value="">全部</option>
+                                <option value="Pending">待处理</option>
+                                <option value="Active">有效</option>
+                                <option value="Expiring">即将过期</option>
+                                <option value="Expired">已过期</option>
+                                <option value="Failed">失败</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">域名搜索</label>
+                            <InputText class="form-control" @bind-Value="searchDomain" placeholder="输入域名关键词" />
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" @onclick="LoadCertificates">查询</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">证书列表</h5>
+                    @if (certificates == null || certificates.Count == 0)
+                    {
+                        <p class="text-muted">暂无证书</p>
+                    }
+                    else
+                    {
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>域名</th>
+                                    <th>状态</th>
+                                    <th>申请时间</th>
+                                    <th>过期时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var cert in certificates)
+                                {
+                                    <tr>
+                                        <td>
+                                            @cert.Domain
+                                            @if (cert.IsWildcard)
+                                            {
+                                                <span class="badge bg-info">泛域名</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @switch (cert.Status)
+                                            {
+                                                case CertificateStatus.Active:
+                                                    <span class="badge bg-success">有效</span>
+                                                    break;
+                                                case CertificateStatus.Pending:
+                                                    <span class="badge bg-warning">待处理</span>
+                                                    break;
+                                                case CertificateStatus.Expiring:
+                                                    <span class="badge bg-danger">即将过期</span>
+                                                    break;
+                                                case CertificateStatus.Expired:
+                                                    <span class="badge bg-secondary">已过期</span>
+                                                    break;
+                                                case CertificateStatus.Failed:
+                                                    <span class="badge bg-dark">失败</span>
+                                                    break;
+                                            }
+                                        </td>
+                                        <td>@cert.IssuedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                        <td>@cert.ExpiresAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" @onclick="@(() => ShowExportDialog(cert))">导出</button>
+                                            @if (cert.Status == CertificateStatus.Active)
+                                            {
+                                                <button class="btn btn-sm btn-warning" @onclick="@(() => RenewCertificate(cert.Id))">续签</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (showExportDialog)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">导出证书</h5>
+                    <button type="button" class="btn-close" @onclick="HideExportDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">导出格式</label>
+                        <InputSelect class="form-select" @bind-Value="exportFormat">
+                            <option value="Pfx">PFX/P12</option>
+                            <option value="Pem">PEM</option>
+                            <option value="Crt">CRT/CER</option>
+                        </InputSelect>
+                    </div>
+                    @if (exportFormat == "Pfx")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">密码（可选）</label>
+                            <InputText class="form-control" type="password" @bind-Value="exportPassword" />
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="HideExportDialog">取消</button>
+                    <button type="button" class="btn btn-primary" @onclick="ExportCertificate" disabled="@isExporting">
+                        @if (isExporting)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span>导出中...</span>
+                        }
+                        else
+                        {
+                            <span>导出</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Certificate> certificates = new();
+    private CertificateStatus? filterStatus;
+    private string searchDomain = string.Empty;
+    private bool isSubmitting = false;
+    private bool showExportDialog = false;
+    private bool isExporting = false;
+    private Certificate? selectedCertificate;
+    private string exportFormat = "Pfx";
+    private string exportPassword = string.Empty;
+
+    private class NewCertificateModel
+    {
+        public string Domain { get; set; } = string.Empty;
+        public bool IsWildcard { get; set; }
+    }
+
+    private NewCertificateModel newCertificateModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCertificates();
+    }
+
+    private async Task LoadCertificates()
+    {
+        if (!string.IsNullOrEmpty(searchDomain))
+        {
+            certificates = await CertificateRepository.SearchByDomainAsync(searchDomain);
+        }
+        else if (filterStatus.HasValue)
+        {
+            certificates = await CertificateRepository.GetByStatusAsync(filterStatus.Value);
+        }
+        else
+        {
+            certificates = await CertificateRepository.GetAllAsync();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        try
+        {
+            var dnsProvider = await GetDefaultDnsProvider();
+            await CertificateService.RequestCertificateAsync(
+                newCertificateModel.Domain,
+                newCertificateModel.IsWildcard,
+                dnsProvider);
+            await LoadCertificates();
+            newCertificateModel = new NewCertificateModel();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ShowExportDialog(Certificate certificate)
+    {
+        selectedCertificate = certificate;
+        showExportDialog = true;
+    }
+
+    private void HideExportDialog()
+    {
+        showExportDialog = false;
+        selectedCertificate = null;
+        exportPassword = string.Empty;
+    }
+
+    private async Task ExportCertificate()
+    {
+        if (selectedCertificate == null) return;
+
+        isExporting = true;
+        try
+        {
+            var format = exportFormat switch
+            {
+                "Pfx" => CertificateFormat.Pfx,
+                "Pem" => CertificateFormat.Pem,
+                "Crt" => CertificateFormat.Crt,
+                _ => CertificateFormat.Pfx
+            };
+
+            var data = await CertificateService.ExportCertificateAsync(
+                selectedCertificate.Id,
+                format,
+                string.IsNullOrEmpty(exportPassword) ? null : exportPassword);
+
+            var fileName = $"{selectedCertificate.Domain}.{format.ToString().ToLower()}";
+            
+            using var stream = new MemoryStream(data);
+            using var fileStream = new FileStream(fileName, FileMode.Create);
+            await stream.CopyToAsync(fileStream);
+
+            HideExportDialog();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+        }
+    }
+
+    private async Task RenewCertificate(Guid certificateId)
+    {
+        try
+        {
+            await CertificateService.RenewCertificateAsync(certificateId);
+            await LoadCertificates();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private async Task<DnsProvider> GetDefaultDnsProvider()
+    {
+        return await Task.FromResult(new DnsProvider
+        {
+            Id = Guid.NewGuid(),
+            ProviderType = DnsProviderType.Aliyun,
+            AccessKeyId = string.Empty,
+            AccessKeySecret = string.Empty,
+            RegionId = "cn-hangzhou",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+    }
+}
