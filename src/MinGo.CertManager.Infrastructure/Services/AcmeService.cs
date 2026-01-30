@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Certes;
 using Certes.Acme;
+using Certes.Acme.Resource;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MinGo.CertManager.Core.Constants;
@@ -12,6 +13,10 @@ using MinGo.CertManager.Infrastructure.Configuration;
 
 namespace MinGo.CertManager.Infrastructure.Services;
 
+/// <summary>
+/// ACME 服务实现
+/// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md
+/// </summary>
 public interface IAcmeService
 {
     Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false);
@@ -31,6 +36,10 @@ public enum AcmeEnvironment
     Staging
 }
 
+/// <summary>
+/// ACME 服务实现类
+/// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md
+/// </summary>
 public class AcmeService : IAcmeService
 {
     private readonly ILogger<AcmeService> _logger;
@@ -180,7 +189,7 @@ public class AcmeService : IAcmeService
     {
         _logger.LogInformation("处理DNS01挑战: Domain={Domain}", domain);
 
-        var dnsChallenge = GetDnsChallenge(authorization);
+        var dnsChallenge = await GetDnsChallenge(authorization);
         if (dnsChallenge == null)
         {
             _logger.LogWarning("无法获取DNS挑战: Domain={Domain}", domain);
@@ -224,7 +233,7 @@ public class AcmeService : IAcmeService
     {
         for (int retry = 0; retry < CertificateConstants.AuthorizationCheckMaxRetries; retry++)
         {
-            var status = GetAuthorizationStatus(authorization);
+            var status = await GetAuthorizationStatus(authorization);
             _logger.LogInformation("授权状态检查: Domain={Domain}, Status={Status}, Retry={Retry}/{MaxRetries}",
                 domain, status, retry + 1, CertificateConstants.AuthorizationCheckMaxRetries);
 
@@ -236,7 +245,7 @@ public class AcmeService : IAcmeService
 
             if (status == "invalid")
             {
-                var error = GetAuthorizationError(authorization);
+                var error = await GetAuthorizationError(authorization);
                 _logger.LogError("授权验证失败: Domain={Domain}, Error={Error}", domain, error);
                 throw new Exception($"授权验证失败: {error}");
             }
@@ -263,123 +272,75 @@ public class AcmeService : IAcmeService
         }
     }
 
-    private string GetAuthorizationStatus(IAuthorizationContext authorization)
+    /// <summary>
+    /// 获取授权状态
+    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#authorizations
+    /// </summary>
+    /// <param name="authorization">授权上下文</param>
+    /// <returns>授权状态字符串（valid/invalid/pending/processing等）</returns>
+    private async Task<string> GetAuthorizationStatus(IAuthorizationContext authorization)
     {
-        try
-        {
-            var method = authorization.GetType().GetMethod("Status");
-            if (method != null)
-            {
-                return method.Invoke(authorization, null)?.ToString() ?? "unknown";
-            }
-        }
-        catch
-        {
-        }
-        return "unknown";
+        var resource = await authorization.Resource();
+        return resource.Status.ToString();
     }
 
-    private string GetAuthorizationError(IAuthorizationContext authorization)
+    /// <summary>
+    /// 获取授权错误信息
+    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#authorizations
+    /// </summary>
+    /// <param name="authorization">授权上下文</param>
+    /// <returns>错误详情字符串</returns>
+    private async Task<string> GetAuthorizationError(IAuthorizationContext authorization)
     {
-        try
+        var resource = await authorization.Resource();
+        var challenges = await authorization.Challenges();
+
+        var challengeResources = resource.Challenges;
+        if (challengeResources != null)
         {
-            var challenges = authorization.GetType().GetProperty("Challenges");
-            if (challenges != null)
+            var errorChallenge = challengeResources.FirstOrDefault(c => c.Error != null);
+            if (errorChallenge != null && errorChallenge.Error != null)
             {
-                var challengesValue = challenges.GetValue(authorization);
-                if (challengesValue != null)
-                {
-                    var enumerator = challengesValue.GetType().GetMethod("GetEnumerator");
-                    if (enumerator != null)
-                    {
-                        var enumeratorObj = enumerator.Invoke(challengesValue, null);
-                        if (enumeratorObj != null)
-                        {
-                            var moveNext = enumeratorObj.GetType().GetMethod("MoveNext");
-                            if (moveNext != null && (bool)moveNext.Invoke(enumeratorObj, null))
-                            {
-                                var current = enumeratorObj.GetType().GetProperty("Current");
-                                if (current != null)
-                                {
-                                    var challenge = current.GetValue(enumeratorObj);
-                                    if (challenge != null)
-                                    {
-                                        var error = challenge.GetType().GetProperty("Error");
-                                        if (error != null)
-                                        {
-                                            var errorValue = error.GetValue(challenge);
-                                            if (errorValue != null)
-                                            {
-                                                var detail = errorValue.GetType().GetProperty("Detail");
-                                                if (detail != null)
-                                                {
-                                                    return detail.GetValue(errorValue)?.ToString() ?? "未知错误";
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                return errorChallenge.Error.Detail;
             }
         }
-        catch
-        {
-        }
+
         return "未知错误";
     }
 
-    private IChallengeContext? GetDnsChallenge(IAuthorizationContext authorization)
+    /// <summary>
+    /// 从授权中获取DNS01类型的挑战
+    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#challenges
+    /// </summary>
+    /// <param name="authorization">授权上下文</param>
+    /// <returns>DNS01挑战上下文，如果未找到则返回null</returns>
+    private async Task<IChallengeContext?> GetDnsChallenge(IAuthorizationContext authorization)
     {
-        try
-        {
-            var method = authorization.GetType().GetMethod("DnsChallenge");
-            if (method != null)
-            {
-                return method.Invoke(authorization, null) as IChallengeContext;
-            }
-        }
-        catch
-        {
-        }
-        return null;
+        var challenges = await authorization.Challenges();
+        return challenges.FirstOrDefault(x => x.Type == ChallengeTypes.Dns01);
     }
 
+    /// <summary>
+    /// 获取DNS记录值（用于DNS TXT记录）
+    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#challenges
+    /// 使用 AccountKey.DnsTxt() 方法计算 DNS TXT 记录值
+    /// </summary>
+    /// <param name="challenge">挑战上下文</param>
+    /// <returns>DNS记录值字符串</returns>
     private string GetDnsRecord(IChallengeContext challenge)
     {
-        try
-        {
-            var property = challenge.GetType().GetProperty("DnsRecord");
-            if (property != null)
-            {
-                return property.GetValue(challenge)?.ToString() ?? string.Empty;
-            }
-        }
-        catch
-        {
-        }
-        return string.Empty;
+        return _accountKey?.DnsTxt(challenge.Token) ?? string.Empty;
     }
 
+    /// <summary>
+    /// 向ACME服务器验证挑战
+    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#challenges
+    /// 使用 challenge.Validate() 方法通知 ACME 服务器验证挑战
+    /// </summary>
+    /// <param name="challenge">挑战上下文</param>
     private async Task ValidateChallenge(IChallengeContext challenge)
     {
-        try
-        {
-            var method = challenge.GetType().GetMethod("Validate");
-            if (method != null)
-            {
-                var task = method.Invoke(challenge, null) as Task;
-                if (task != null)
-                {
-                    await task;
-                }
-            }
-        }
-        catch
-        {
-        }
+        await challenge.Validate();
     }
 
     public async Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService)
@@ -399,7 +360,7 @@ public class AcmeService : IAcmeService
                 if (_authorizations.TryGetValue(authDomain, out var authorization))
                 {
                     var recordName = $"_acme-challenge.{authDomain}";
-                    var dnsChallenge = GetDnsChallenge(authorization);
+                    var dnsChallenge = await GetDnsChallenge(authorization);
 
                     if (dnsChallenge != null)
                     {

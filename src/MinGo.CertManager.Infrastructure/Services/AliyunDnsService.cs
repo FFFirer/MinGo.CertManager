@@ -23,12 +23,12 @@ public interface IAliyunDnsService
 public class AliyunDnsService : IAliyunDnsService
 {
     private readonly HttpClient _httpClient;
-    private readonly ILogger _logger;
+    private readonly ILogger<AliyunDnsService> _logger;
     private readonly AliyunDnsSettings _settings;
 
     public AliyunDnsService(
         HttpClient httpClient,
-        ILogger logger,
+        ILogger<AliyunDnsService> logger,
         IOptions<AliyunDnsSettings> settings)
     {
         _httpClient = httpClient;

@@ -18,6 +18,7 @@ namespace MinGo.CertManager.Tests.Services;
 public class AcmeServiceIntegrationTests
 {
     private readonly Mock<ILogger<AcmeService>> _loggerMock;
+    private readonly Mock<ILogger<AcmeAccountCache>> _cacheLoggerMock;
     private readonly Mock<IAliyunDnsService> _dnsServiceMock;
     private readonly Mock<IAcmeAccountCache> _accountCacheMock;
     private readonly IOptions<AcmeSettings> _acmeSettings;
@@ -26,6 +27,7 @@ public class AcmeServiceIntegrationTests
     public AcmeServiceIntegrationTests()
     {
         _loggerMock = new Mock<ILogger<AcmeService>>();
+        _cacheLoggerMock = new Mock<ILogger<AcmeAccountCache>>();
         _dnsServiceMock = new Mock<IAliyunDnsService>();
         _accountCacheMock = new Mock<IAcmeAccountCache>();
 
@@ -227,7 +229,7 @@ public class AcmeServiceIntegrationTests
     [Fact]
     public async Task AcmeAccountCache_ShouldCacheAndRetrieveAccount()
     {
-        var accountCache = new AcmeAccountCache(_dbContext, _loggerMock.Object);
+        var accountCache = new AcmeAccountCache(_dbContext, _cacheLoggerMock.Object);
 
         var account = new AcmeAccount
         {
@@ -252,7 +254,7 @@ public class AcmeServiceIntegrationTests
     [Fact]
     public async Task AcmeAccountCache_ShouldUpdateLastUsedTime()
     {
-        var accountCache = new AcmeAccountCache(_dbContext, _loggerMock.Object);
+        var accountCache = new AcmeAccountCache(_dbContext, _cacheLoggerMock.Object);
 
         var account = new AcmeAccount
         {
