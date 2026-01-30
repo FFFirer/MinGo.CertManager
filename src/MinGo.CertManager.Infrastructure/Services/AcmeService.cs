@@ -35,16 +35,18 @@ public class AcmeService : IAcmeService
 {
     private readonly ILogger<AcmeService> _logger;
     private readonly AcmeSettings _acmeSettings;
+    private readonly IAcmeAccountCache _accountCache;
 
     private AcmeContext? _acmeContext;
     private IKey? _accountKey;
     private readonly Dictionary<string, IOrderContext> _orders = new();
     private readonly Dictionary<string, IAuthorizationContext> _authorizations = new();
 
-    public AcmeService(ILogger<AcmeService> logger, IOptions<AcmeSettings> acmeSettings)
+    public AcmeService(ILogger<AcmeService> logger, IOptions<AcmeSettings> acmeSettings, IAcmeAccountCache accountCache)
     {
         _logger = logger;
         _acmeSettings = acmeSettings.Value;
+        _accountCache = accountCache;
     }
 
     public async Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false)
@@ -58,13 +60,41 @@ public class AcmeService : IAcmeService
             _logger.LogInformation("连接到ACME服务器: {AcmeUri}", acmeUri);
 
             _acmeContext = new AcmeContext(acmeUri);
-            _logger.LogInformation("创建新账户");
 
-            _accountKey = KeyFactory.NewKey(KeyAlgorithm.ES256);
             var accountEmail = string.IsNullOrEmpty(_acmeSettings.AccountEmail) ? AcmeConstants.DefaultAccountEmail : _acmeSettings.AccountEmail;
-            var account = await _acmeContext.NewAccount(new[] { $"mailto:{accountEmail}" }, true);
+            var contact = $"mailto:{accountEmail}";
 
-            _logger.LogInformation("账户创建成功: AccountId={AccountId}", account.Location);
+            var cachedAccount = await _accountCache.GetCachedAccountAsync(acmeUri.ToString(), contact);
+
+            if (cachedAccount != null)
+            {
+                _logger.LogInformation("使用缓存的ACME账号: AccountId={AccountId}", cachedAccount.AccountId);
+
+                _accountKey = KeyFactory.FromDer(Convert.FromBase64String(cachedAccount.AccountKey));
+                var account = await _acmeContext.NewAccount(new[] { contact }, true);
+
+                await _accountCache.UpdateLastUsedAsync(cachedAccount.Id);
+            }
+            else
+            {
+                _logger.LogInformation("创建新的ACME账户");
+
+                _accountKey = KeyFactory.NewKey(KeyAlgorithm.ES256);
+                var account = await _acmeContext.NewAccount(new[] { contact }, true);
+
+                _logger.LogInformation("账户创建成功: AccountId={AccountId}", account.Location);
+
+                var newAccount = new Core.Entities.AcmeAccount
+                {
+                    AccountId = account.Location.ToString(),
+                    AccountKey = Convert.ToBase64String(_accountKey.ToDer()),
+                    Contact = contact,
+                    AcmeServerUrl = acmeUri.ToString(),
+                    IsStaging = useStaging
+                };
+
+                await _accountCache.CacheAccountAsync(newAccount);
+            }
 
             var domains = new List<string> { domain };
             if (isWildcard)
@@ -178,6 +208,9 @@ public class AcmeService : IAcmeService
             _logger.LogInformation("验证DNS挑战: Domain={Domain}", domain);
             await ValidateChallenge(dnsChallenge);
 
+            _logger.LogInformation("等待授权验证完成: Domain={Domain}", domain);
+            await WaitForAuthorizationAsync(authorization, domain);
+
             _logger.LogInformation("DNS挑战验证成功: Domain={Domain}", domain);
         }
         catch (Exception ex)
@@ -185,6 +218,117 @@ public class AcmeService : IAcmeService
             _logger.LogError(ex, "DNS挑战验证失败: Domain={Domain}", domain);
             throw;
         }
+    }
+
+    private async Task WaitForAuthorizationAsync(IAuthorizationContext authorization, string domain)
+    {
+        for (int retry = 0; retry < CertificateConstants.AuthorizationCheckMaxRetries; retry++)
+        {
+            var status = GetAuthorizationStatus(authorization);
+            _logger.LogInformation("授权状态检查: Domain={Domain}, Status={Status}, Retry={Retry}/{MaxRetries}",
+                domain, status, retry + 1, CertificateConstants.AuthorizationCheckMaxRetries);
+
+            if (status == "valid")
+            {
+                _logger.LogInformation("授权验证成功: Domain={Domain}", domain);
+                return;
+            }
+
+            if (status == "invalid")
+            {
+                var error = GetAuthorizationError(authorization);
+                _logger.LogError("授权验证失败: Domain={Domain}, Error={Error}", domain, error);
+                throw new Exception($"授权验证失败: {error}");
+            }
+
+            if (status == "pending" || status == "processing")
+            {
+                if (retry < CertificateConstants.AuthorizationCheckMaxRetries - 1)
+                {
+                    _logger.LogInformation("等待授权验证: Domain={Domain}, Delay={Delay}秒",
+                        domain, CertificateConstants.AuthorizationCheckIntervalMilliseconds / 1000);
+                    await Task.Delay(CertificateConstants.AuthorizationCheckIntervalMilliseconds);
+                }
+                else
+                {
+                    _logger.LogError("授权验证超时: Domain={Domain}", domain);
+                    throw new TimeoutException($"授权验证超时，已重试 {CertificateConstants.AuthorizationCheckMaxRetries} 次");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("未知的授权状态: Domain={Domain}, Status={Status}", domain, status);
+                await Task.Delay(CertificateConstants.AuthorizationCheckIntervalMilliseconds);
+            }
+        }
+    }
+
+    private string GetAuthorizationStatus(IAuthorizationContext authorization)
+    {
+        try
+        {
+            var method = authorization.GetType().GetMethod("Status");
+            if (method != null)
+            {
+                return method.Invoke(authorization, null)?.ToString() ?? "unknown";
+            }
+        }
+        catch
+        {
+        }
+        return "unknown";
+    }
+
+    private string GetAuthorizationError(IAuthorizationContext authorization)
+    {
+        try
+        {
+            var challenges = authorization.GetType().GetProperty("Challenges");
+            if (challenges != null)
+            {
+                var challengesValue = challenges.GetValue(authorization);
+                if (challengesValue != null)
+                {
+                    var enumerator = challengesValue.GetType().GetMethod("GetEnumerator");
+                    if (enumerator != null)
+                    {
+                        var enumeratorObj = enumerator.Invoke(challengesValue, null);
+                        if (enumeratorObj != null)
+                        {
+                            var moveNext = enumeratorObj.GetType().GetMethod("MoveNext");
+                            if (moveNext != null && (bool)moveNext.Invoke(enumeratorObj, null))
+                            {
+                                var current = enumeratorObj.GetType().GetProperty("Current");
+                                if (current != null)
+                                {
+                                    var challenge = current.GetValue(enumeratorObj);
+                                    if (challenge != null)
+                                    {
+                                        var error = challenge.GetType().GetProperty("Error");
+                                        if (error != null)
+                                        {
+                                            var errorValue = error.GetValue(challenge);
+                                            if (errorValue != null)
+                                            {
+                                                var detail = errorValue.GetType().GetProperty("Detail");
+                                                if (detail != null)
+                                                {
+                                                    return detail.GetValue(errorValue)?.ToString() ?? "未知错误";
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+        return "未知错误";
     }
 
     private IChallengeContext? GetDnsChallenge(IAuthorizationContext authorization)

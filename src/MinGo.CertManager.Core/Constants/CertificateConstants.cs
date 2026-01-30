@@ -5,6 +5,8 @@ public static class CertificateConstants
     public const int CertificateValidityDays = 90;
     public const int DnsPropagationDelayMilliseconds = 10000;
     public const int AuthorizationCheckDelayMilliseconds = 10000;
+    public const int AuthorizationCheckMaxRetries = 30;
+    public const int AuthorizationCheckIntervalMilliseconds = 2000;
 }
 
 public static class AcmeConstants

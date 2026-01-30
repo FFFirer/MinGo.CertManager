@@ -41,6 +41,8 @@ try
     builder.Services.AddScoped<ICertificateService, CertificateService>();
     builder.Services.AddScoped<IDnsValidationService, AliyunDnsValidationService>();
     builder.Services.AddScoped<IAcmeService, AcmeService>();
+    builder.Services.AddScoped<IAcmeAccountCache, AcmeAccountCache>();
+    builder.Services.AddScoped<IAliyunDnsService, AliyunDnsService>();
 
     builder.Services.Configure<AcmeSettings>(
         builder.Configuration.GetSection(AcmeSettings.SectionName));
