@@ -357,23 +357,25 @@ public class AcmeService : IAcmeService
 
             foreach (var authDomain in domains)
             {
+                var recordName = $"_acme-challenge.{domain}";
+                string? dnsKey = null;
+
+                // 尝试从已存储的授权中获取DNS密钥
                 if (_authorizations.TryGetValue(authDomain, out var authorization))
                 {
-                    var recordName = $"_acme-challenge.{authDomain}";
                     var dnsChallenge = await GetDnsChallenge(authorization);
-
                     if (dnsChallenge != null)
                     {
-                        var dnsKey = GetDnsRecord(dnsChallenge);
-                        if (!string.IsNullOrEmpty(dnsKey))
-                        {
-                            _logger.LogInformation("删除DNS TXT记录: Record={Record}", recordName);
-                            await dnsService.DeleteTxtRecordAsync(authDomain, recordName, dnsKey);
-                        }
+                        dnsKey = GetDnsRecord(dnsChallenge);
                     }
                 }
+
+                // 即使没有授权信息，也尝试删除DNS记录
+                _logger.LogInformation("删除DNS TXT记录: Record={Record}", recordName);
+                await dnsService.DeleteTxtRecordAsync(domain, recordName, dnsKey ?? string.Empty);
             }
 
+            _authorizations.Clear();
             _logger.LogInformation("ACME资源清理完成: Domain={Domain}", domain);
         }
         catch (Exception ex)
