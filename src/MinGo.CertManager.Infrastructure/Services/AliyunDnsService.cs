@@ -7,6 +7,7 @@ using MinGo.CertManager.Infrastructure.Configuration;
 using AlibabaCloud.SDK.Alidns20150109;
 using AlibabaCloud.SDK.Alidns20150109.Models;
 using AlibabaCloud.OpenApiClient.Models;
+using Mapster;
 
 namespace MinGo.CertManager.Infrastructure.Services;
 
@@ -16,8 +17,9 @@ namespace MinGo.CertManager.Infrastructure.Services;
 /// </summary>
 public interface IAliyunDnsService
 {
-    Task CreateTxtRecordAsync(string domain, string recordName, string value);
-    Task DeleteTxtRecordAsync(string domain, string recordName, string value);
+    Task ClearTxtRecordAsync(string rootDomain, string recordName, string dnsTxt);
+    Task CreateTxtRecordAsync(string rootDomain, string recordName, string dnsTxt);
+    Task DeleteTxtRecordAsync(string rootDomain, string recordName, string dnsTxt);
 }
 
 /// <summary>
@@ -38,29 +40,53 @@ public class AliyunDnsService : IAliyunDnsService
         _logger = logger;
         _settings = settings.Value;
 
-        var config = new Config
-        {
-            AccessKeyId = _settings.AccessKeyId,
-            AccessKeySecret = _settings.AccessKeySecret,
-            RegionId = _settings.RegionId,
-            Endpoint = "alidns.cn-hangzhou.aliyuncs.com"
-        };
+        var config = _settings.Adapt<AlibabaCloud.OpenApiClient.Models.Config>();
 
         _client = new AlibabaCloud.SDK.Alidns20150109.Client(config);
     }
 
-    public async Task CreateTxtRecordAsync(string domain, string recordName, string value)
+    public async Task ClearTxtRecordAsync(string rootDomain, string recordName, string dnsTxt)
     {
-        _logger.LogInformation("创建阿里云DNS TXT记录: Domain={Domain}, Record={Record}, Value={Value}", domain, recordName, value);
+        try
+        {
+            var exists = await _client.DescribeDomainRecordsAsync(new()
+            {
+                DomainName = rootDomain,
+                Type = "TXT"
+            });
+
+            if (exists.Body?.DomainRecords?.Record != null)
+            {
+                foreach (var record in exists.Body.DomainRecords.Record)
+                {
+                    _logger.LogInformation("删除已存在的DNS记录: Domain={RootDomain}, Record={Record}, RecordId={RecordId}",
+                        rootDomain, recordName, record.RecordId);
+
+                    await _client.DeleteDomainRecordAsync(new()
+                    {
+                        RecordId = record.RecordId
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Clear DNS record {RR} of {RootDomain} for {TxtValue}", recordName, rootDomain, dnsTxt);
+        }
+    }
+
+    public async Task CreateTxtRecordAsync(string rootDomain, string recordName, string dnsTxt)
+    {
+        _logger.LogInformation("创建阿里云DNS TXT记录: Domain={RootDomain}, Record={Record}, Value={Value}", rootDomain, recordName, dnsTxt);
 
         try
         {
             var request = new AddDomainRecordRequest
             {
-                DomainName = domain,
+                DomainName = rootDomain,
                 RR = recordName,
                 Type = "TXT",
-                Value = value,
+                Value = dnsTxt,
                 TTL = 600
             };
 
@@ -68,19 +94,19 @@ public class AliyunDnsService : IAliyunDnsService
 
             if (response.StatusCode == 200)
             {
-                _logger.LogInformation("阿里云DNS TXT记录创建成功: Domain={Domain}, Record={Record}, RecordId={RecordId}",
-                    domain, recordName, response.Body?.RecordId);
+                _logger.LogInformation("阿里云DNS TXT记录创建成功: Domain={RootDomain}, Record={Record}, RecordId={RecordId}",
+                    rootDomain, recordName, response.Body?.RecordId);
             }
             else
             {
-                _logger.LogError("阿里云DNS TXT记录创建失败: Domain={Domain}, Record={Record}, StatusCode={StatusCode}",
-                    domain, recordName, response.StatusCode);
+                _logger.LogError("阿里云DNS TXT记录创建失败: Domain={RootDomain}, Record={Record}, StatusCode={StatusCode}",
+                    rootDomain, recordName, response.StatusCode);
                 throw new Exception($"阿里云DNS TXT记录创建失败: {response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "阿里云DNS TXT记录创建失败: Domain={Domain}, Record={Record}", domain, recordName);
+            _logger.LogError(ex, "阿里云DNS TXT记录创建失败: Domain={RootDomain}, Record={Record}", rootDomain, recordName);
             throw;
         }
     }

@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Certes;
 using Certes.Acme;
-using Certes.Acme.Resource;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MinGo.CertManager.Core.Constants;
-using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Infrastructure.Configuration;
 
 namespace MinGo.CertManager.Infrastructure.Services;
@@ -122,7 +116,7 @@ public class AcmeService : IAcmeService
 
             foreach (var authorization in authorizations)
             {
-                var authDomain = GetAuthorizationDomain(authorization);
+                var authDomain = await GetAuthorizationDomain(authorization);
                 _authorizations[authDomain] = authorization;
                 _logger.LogInformation("处理授权: Domain={AuthDomain}", authDomain);
 
@@ -161,28 +155,10 @@ public class AcmeService : IAcmeService
         }
     }
 
-    private string GetAuthorizationDomain(IAuthorizationContext authorization)
+    private async Task<string> GetAuthorizationDomain(IAuthorizationContext authorization)
     {
-        try
-        {
-            var identifierProp = authorization.GetType().GetProperty("Identifier");
-            if (identifierProp != null)
-            {
-                var identifier = identifierProp.GetValue(authorization);
-                if (identifier != null)
-                {
-                    var valueProp = identifier.GetType().GetProperty("Value");
-                    if (valueProp != null)
-                    {
-                        return valueProp.GetValue(identifier)?.ToString() ?? "unknown";
-                    }
-                }
-            }
-        }
-        catch
-        {
-        }
-        return "unknown";
+        var authz = await authorization.Resource();
+        return authz.Identifier.Value;
     }
 
     private async Task HandleDnsChallengeAsync(IAuthorizationContext authorization, IAliyunDnsService dnsService, string domain)
@@ -196,20 +172,22 @@ public class AcmeService : IAcmeService
             return;
         }
 
-        var dnsKey = GetDnsRecord(dnsChallenge);
-        if (string.IsNullOrEmpty(dnsKey))
+        var dnsTxt = GetDnsRecord(dnsChallenge);
+        if (string.IsNullOrEmpty(dnsTxt))
         {
             _logger.LogWarning("无法获取DNS记录值: Domain={Domain}", domain);
             return;
         }
 
-        var recordName = $"_acme-challenge.{domain}";
+        var (rr, rootDomain) = SplitDomainName(domain);
+        var recordName = $"_acme-challenge.{rr}";
 
         _logger.LogInformation("创建DNS TXT记录: Record={Record}", recordName);
 
         try
         {
-            await dnsService.CreateTxtRecordAsync(domain, recordName, dnsKey);
+            await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsTxt);
+            await dnsService.CreateTxtRecordAsync(rootDomain, recordName, dnsTxt);
 
             _logger.LogInformation("等待DNS传播: Delay={Delay}秒", CertificateConstants.DnsPropagationDelayMilliseconds / 1000);
             await Task.Delay(CertificateConstants.DnsPropagationDelayMilliseconds);
@@ -237,20 +215,21 @@ public class AcmeService : IAcmeService
             _logger.LogInformation("授权状态检查: Domain={Domain}, Status={Status}, Retry={Retry}/{MaxRetries}",
                 domain, status, retry + 1, CertificateConstants.AuthorizationCheckMaxRetries);
 
-            if (status == "valid")
+            if (status?.Equals("valid", StringComparison.OrdinalIgnoreCase) == true)
             {
                 _logger.LogInformation("授权验证成功: Domain={Domain}", domain);
                 return;
             }
 
-            if (status == "invalid")
+            if (status?.Equals("invalid", StringComparison.OrdinalIgnoreCase) == true)
             {
                 var error = await GetAuthorizationError(authorization);
                 _logger.LogError("授权验证失败: Domain={Domain}, Error={Error}", domain, error);
                 throw new Exception($"授权验证失败: {error}");
             }
 
-            if (status == "pending" || status == "processing")
+            if (status?.Equals("pending", StringComparison.OrdinalIgnoreCase) == true
+                || status?.Equals("processing", StringComparison.OrdinalIgnoreCase) == true)
             {
                 if (retry < CertificateConstants.AuthorizationCheckMaxRetries - 1)
                 {
@@ -278,10 +257,10 @@ public class AcmeService : IAcmeService
     /// </summary>
     /// <param name="authorization">授权上下文</param>
     /// <returns>授权状态字符串（valid/invalid/pending/processing等）</returns>
-    private async Task<string> GetAuthorizationStatus(IAuthorizationContext authorization)
+    private async Task<string?> GetAuthorizationStatus(IAuthorizationContext authorization)
     {
         var resource = await authorization.Resource();
-        return resource.Status.ToString();
+        return resource.Status?.ToString();
     }
 
     /// <summary>
@@ -316,8 +295,7 @@ public class AcmeService : IAcmeService
     /// <returns>DNS01挑战上下文，如果未找到则返回null</returns>
     private async Task<IChallengeContext?> GetDnsChallenge(IAuthorizationContext authorization)
     {
-        var challenges = await authorization.Challenges();
-        return challenges.FirstOrDefault(x => x.Type == ChallengeTypes.Dns01);
+        return await authorization.Dns();
     }
 
     /// <summary>
@@ -329,7 +307,8 @@ public class AcmeService : IAcmeService
     /// <returns>DNS记录值字符串</returns>
     private string GetDnsRecord(IChallengeContext challenge)
     {
-        return _accountKey?.DnsTxt(challenge.Token) ?? string.Empty;
+        return _acmeContext?.AccountKey.DnsTxt(challenge.Token) ?? string.Empty;
+        // return _accountKey?.DnsTxt(challenge.Token) ?? string.Empty;
     }
 
     /// <summary>
@@ -341,6 +320,18 @@ public class AcmeService : IAcmeService
     private async Task ValidateChallenge(IChallengeContext challenge)
     {
         await challenge.Validate();
+    }
+
+    private static (string rr, string root) SplitDomainName(string domainName)
+    {
+        var spans = domainName.Split('.').AsSpan<string>();
+
+        var index = spans.Length - 2;
+
+        var rr = string.Join(".", spans[..index]!);
+        var domain = string.Join(".", spans[index..]!);
+
+        return (rr, domain);
     }
 
     public async Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService)
@@ -357,7 +348,8 @@ public class AcmeService : IAcmeService
 
             foreach (var authDomain in domains)
             {
-                var recordName = $"_acme-challenge.{domain}";
+                var (rr, rootDomain) = SplitDomainName(authDomain);
+                var recordName = $"_acme-challenge.{rr}";
                 string? dnsKey = null;
 
                 // 尝试从已存储的授权中获取DNS密钥
@@ -372,7 +364,7 @@ public class AcmeService : IAcmeService
 
                 // 即使没有授权信息，也尝试删除DNS记录
                 _logger.LogInformation("删除DNS TXT记录: Record={Record}", recordName);
-                await dnsService.DeleteTxtRecordAsync(domain, recordName, dnsKey ?? string.Empty);
+                await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsKey ?? string.Empty);
             }
 
             _authorizations.Clear();

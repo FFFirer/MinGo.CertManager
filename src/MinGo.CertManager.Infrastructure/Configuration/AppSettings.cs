@@ -24,9 +24,6 @@ public class AliyunDnsSettings
 
     public string AccessKeyId { get; set; } = string.Empty;
     public string AccessKeySecret { get; set; } = string.Empty;
-    public string RegionId { get; set; } = "cn-hangzhou";
-    public string ApiVersion { get; set; } = "2015-01-09";
-    public string Endpoint { get; set; } = "https://alidns.aliyuncs.com/";
 }
 
 public class QuartzSettings

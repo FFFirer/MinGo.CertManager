@@ -32,18 +32,21 @@ public class CertificateService : ICertificateService
     private readonly ILogger<CertificateService> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly CertificateSettings _certificateSettings;
+    private readonly IAliyunDnsService _aliyunDnsService;
 
     public CertificateService(
         ICertificateRepository certificateRepository,
         IAcmeService acmeService,
         ILogger<CertificateService> logger,
         ILoggerFactory loggerFactory,
-        IOptions<CertificateSettings> certificateSettings)
+        IOptions<CertificateSettings> certificateSettings,
+        IAliyunDnsService aliyunDnsService)
     {
         _certificateRepository = certificateRepository;
         _acmeService = acmeService;
         _logger = logger;
         _loggerFactory = loggerFactory;
+        _aliyunDnsService = aliyunDnsService;
         _certificateSettings = certificateSettings.Value;
     }
 
@@ -69,14 +72,7 @@ public class CertificateService : ICertificateService
         {
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingAccount, "创建ACME账户");
 
-            var dnsSettings = new AliyunDnsSettings
-            {
-                AccessKeyId = dnsProvider.AccessKeyId,
-                AccessKeySecret = dnsProvider.AccessKeySecret,
-                RegionId = dnsProvider.RegionId
-            };
-            var dnsService = new AliyunDnsService(_loggerFactory.CreateLogger<AliyunDnsService>(),
-                Microsoft.Extensions.Options.Options.Create(dnsSettings));
+            var dnsService = _aliyunDnsService;
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingOrder, "创建ACME订单");
 
