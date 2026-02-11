@@ -1,3 +1,17 @@
+# 技术框架
+
+- 使用ASP.NET Core Blazor，渲染模式为Auto
+- 样式使用TailwindCSS v4
+- 移除Bootstrap
+  
+# 文件结构
+
+- docs/         所有文档
+  - 任务名/      每个任务的文档
+- src/          所有源代码
+- test/         所有测试代码
+- demos/        所有演示代码
+
 # 开发规范
 
 - dotnet项目，目标框架使用.NET 10
@@ -31,32 +45,3 @@
 - Bootstrap
 - js/css
 - Quartz.NET
-
-## 身份认证与授权
-
-- 使用ASP.NET Core Identity进行用户认证与授权，作为底层框架
-
-# 项目结构
-
-- docs/ 文档目录
-- src/ 源码目录
-- test/ 测试目录
-- main.slnx 解决方案
-
-## docs/
-
-- ARCHITEURE.md 项目整体架构描述
-- REQUIREMENTS.md 项目需求清单
-- TASKS.md 开发任务
-
-## src/
-
-- 主要实现逻辑
-
-## test/
-
-- 单元测试代码
-
-## main.slnx
-
-- 解决方案
