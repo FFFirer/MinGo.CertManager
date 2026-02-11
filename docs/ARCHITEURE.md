@@ -32,6 +32,10 @@
 - js/css
 - Quartz.NET
 
+## 身份认证与授权
+
+- 使用ASP.NET Core Identity进行用户认证与授权，作为底层框架
+
 # 项目结构
 
 - docs/ 文档目录
