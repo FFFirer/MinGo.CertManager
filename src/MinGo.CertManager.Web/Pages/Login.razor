@@ -1,0 +1,55 @@
+@page "/login"
+@inject NavigationManager NavigationManager
+
+<PageTitle>登录 - MinGo.CertManager</PageTitle>
+
+<div class="min-h-screen flex items-center justify-center px-4">
+    <div class="card p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary mb-2">MinGo.CertManager</h1>
+            <p class="text-muted-foreground">证书管理系统</p>
+        </div>
+
+        <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
+            <DataAnnotationsValidator />
+            <div class="space-y-6">
+                <div>
+                    <label class="label">用户名</label>
+                    <InputText class="input" @bind-Value="loginModel.Username" placeholder="请输入用户名" />
+                </div>
+
+                <div>
+                    <label class="label">密码</label>
+                    <InputText type="password" class="input" @bind-Value="loginModel.Password" placeholder="请输入密码" />
+                </div>
+
+                <div class="flex items-center">
+                    <InputCheckbox class="checkbox" @bind-Value="loginModel.RememberMe" />
+                    <label for="remember" class="ml-2 text-sm">记住我</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full">登录</button>
+            </div>
+        </EditForm>
+
+        <div class="mt-6 text-center text-sm text-muted-foreground">
+            <p>默认管理员账号: admin / admin</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private class LoginModel
+    {
+        public string Username { get; set; } = "admin";
+        public string Password { get; set; } = "admin";
+        public bool RememberMe { get; set; }
+    }
+
+    private LoginModel loginModel = new();
+
+    private void HandleLogin()
+    {
+        NavigationManager.NavigateTo("/certificates");
+    }
+}

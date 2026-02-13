@@ -1,91 +1,366 @@
-/* 移除Bootstrap引用，只保留必要的自定义样式 */
+* {
+  border-color: rgb(var(--border));
+}
 
-/* 确保与Tailwind CSS的字体设置兼容 */
+body {
+  font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-/* 导航链接样式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.btn:active::before {
+  width: 200px;
+  height: 200px;
+}
+
+.btn-primary {
+  background-color: rgb(0, 120, 212);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: rgb(0, 100, 180);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: rgb(243, 249, 255);
+  color: rgb(23, 23, 23);
+}
+
+.btn-secondary:hover {
+  background-color: rgb(233, 245, 255);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn-destructive {
+  background-color: rgb(220, 38, 38);
+  color: white;
+}
+
+.btn-destructive:hover {
+  background-color: rgb(185, 28, 28);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid rgb(229, 229, 229);
+  border-radius: 0.375rem;
+  background-color: rgb(255, 255, 255);
+  color: rgb(23, 23, 23);
+  transition: all 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: rgb(0, 120, 212);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+.input:hover:not(:focus) {
+  border-color: rgb(0, 120, 212);
+}
+
+.select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid rgb(229, 229, 229);
+  border-radius: 0.375rem;
+  background-color: rgb(255, 255, 255);
+  color: rgb(23, 23, 23);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.select:focus {
+  outline: none;
+  border-color: rgb(0, 120, 212);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+.card {
+  background-color: rgb(255, 255, 255);
+  color: rgb(23, 23, 23);
+  border-radius: 0.5rem;
+  border: 1px solid rgb(229, 229, 229);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+}
+
+.badge-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-info {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
 .nav-link {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    font-weight: 500;
-    color: var(--muted-foreground);
-    transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(115, 115, 115);
+  transition: all 0.2s;
+  border-radius: 0.375rem;
 }
 
 .nav-link:hover {
-    background-color: var(--accent);
-    color: var(--accent-foreground);
+  background-color: rgb(243, 249, 255);
+  color: rgb(23, 23, 23);
+  transform: translateY(-1px);
 }
 
 .nav-link.active {
-    background-color: var(--primary);
-    color: var(--primary-foreground);
+  background-color: rgb(0, 120, 212);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* 移动端导航链接样式 */
-.mobile-nav-link {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 0.375rem;
-    font-weight: 500;
-    color: var(--muted-foreground);
-    transition: all 0.2s ease;
+.modal {
+  background-color: rgb(255, 255, 255);
+  color: rgb(23, 23, 23);
+  border-radius: 0.75rem;
+  border: 1px solid rgb(229, 229, 229);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.20);
 }
 
-.mobile-nav-link:hover {
-    background-color: var(--accent);
-    color: var(--accent-foreground);
+.modal-overlay {
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
 }
 
-.mobile-nav-link.active {
-    background-color: var(--primary);
-    color: var(--primary-foreground);
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid rgb(229, 229, 229);
+  border-radius: 0.25rem;
+  background-color: rgb(255, 255, 255);
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-/* 保留必要的Blazor错误UI样式 */
+.checkbox:checked {
+  background-color: rgb(0, 120, 212);
+  border-color: rgb(0, 120, 212);
+}
+
+.checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(23, 23, 23);
+  margin-bottom: 0.25rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgb(229, 229, 229);
+}
+
+.table th {
+  font-weight: 600;
+  color: rgb(115, 115, 115);
+}
+
+.dark .table th,
+.dark .table td {
+  border-bottom-color: rgb(60, 60, 60);
+}
+
+.dark .input,
+.dark .select {
+  background-color: rgb(32, 32, 32);
+  color: rgb(255, 255, 255);
+  border-color: rgb(60, 60, 60);
+}
+
+.dark .card,
+.dark .modal {
+  background-color: rgb(44, 44, 44);
+  color: rgb(255, 255, 255);
+  border-color: rgb(60, 60, 60);
+}
+
+.dark .nav-link {
+  color: rgb(163, 163, 163);
+}
+
+.dark .nav-link:hover {
+  background-color: rgb(51, 51, 51);
+  color: rgb(255, 255, 255);
+}
+
+.dark .btn-secondary {
+  background-color: rgb(51, 51, 51);
+  color: rgb(255, 255, 255);
+}
+
+.dark .btn-secondary:hover {
+  background-color: rgb(60, 60, 60);
+}
+
+.dark .badge-success {
+  background-color: #064e3b;
+  color: #d1fae5;
+}
+
+.dark .badge-warning {
+  background-color: #78350f;
+  color: #fef3c7;
+}
+
+.dark .badge-error {
+  background-color: #7f1d1d;
+  color: #fee2e2;
+}
+
+.dark .badge-info {
+  background-color: #1e3a8a;
+  color: #dbeafe;
+}
+
+.dark .label {
+  color: rgb(255, 255, 255);
+}
+
+.certificate-row {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid rgb(229, 229, 229);
+  transition: all 0.2s;
+}
+
+.certificate-row:hover {
+  background-color: rgb(243, 249, 255);
+}
+
+.dark .certificate-row {
+  border-bottom-color: rgb(60, 60, 60);
+}
+
+.dark .certificate-row:hover {
+  background-color: rgb(51, 51, 51);
+}
+
+.certificate-row:last-child {
+  border-bottom: none;
+}
+
 #blazor-error-ui {
-    background: var(--background);
-    border-top: 1px solid var(--border);
-    bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
-    display: none;
-    left: 0;
-    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
-    position: fixed;
-    width: 100%;
-    z-index: 1000;
+  background: var(--background);
+  border-top: 1px solid var(--border);
+  bottom: 0;
+  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+  display: none;
+  left: 0;
+  padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+  position: fixed;
+  width: 100%;
+  z-index: 1000;
 }
 
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
-    }
+#blazor-error-ui .dismiss {
+  cursor: pointer;
+  position: absolute;
+  right: 0.75rem;
+  top: 0.5rem;
+}
 
-/* 保留Blazor错误边界样式 */
 .blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, var(--destructive);
-    padding: 1rem 1rem 1rem 3.7rem;
-    color: var(--destructive-foreground);
+  background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMjYuMzM4IDkzLjAxNjIgMjI2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZSIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, var(--destructive);
+  padding: 1rem 1rem 1rem 3.7rem;
+  color: var(--destructive-foreground);
 }
 
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
-    }
+.blazor-error-boundary::after {
+  content: "An error has occurred."
+}
 
-/* 验证样式 */
 .valid.modified:not([type=checkbox]) {
-    outline: 1px solid var(--primary);
+  outline: 1px solid var(--primary);
 }
 
 .invalid {
-    outline: 1px solid var(--destructive);
+  outline: 1px solid var(--destructive);
 }
 
 .validation-message {
-    color: var(--destructive);
+  color: var(--destructive);
 }

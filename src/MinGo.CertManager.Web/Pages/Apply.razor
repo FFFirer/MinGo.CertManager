@@ -1,0 +1,124 @@
+@page "/apply"
+@using MinGo.CertManager.Core.Entities
+@using MinGo.CertManager.Infrastructure.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject ICertificateService CertificateService
+@inject NavigationManager NavigationManager
+
+<PageTitle>申请证书</PageTitle>
+
+<div class="mb-8">
+    <div class="flex items-center gap-4">
+        <button class="btn btn-secondary" @onclick="NavigateToCertificates">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            返回列表
+        </button>
+    </div>
+</div>
+
+<div class="max-w-2xl">
+    <div class="card">
+        <div class="p-6 border-b border-border">
+            <h1 class="text-2xl font-bold">申请新证书</h1>
+            <p class="text-muted-foreground mt-1">填写以下信息申请SSL证书</p>
+        </div>
+
+        <div class="p-6">
+            <EditForm Model="@applyModel" OnValidSubmit="HandleApply">
+                <DataAnnotationsValidator />
+                <div class="space-y-6">
+                    <div>
+                        <label class="label">域名</label>
+                        <InputText class="input" @bind-Value="applyModel.Domain" placeholder="example.com" />
+                        <div class="mt-2">
+                            <InputCheckbox class="checkbox" @bind-Value="applyModel.IsWildcard" />
+                            <label class="ml-2 text-sm">申请泛域名证书 (*.example.com)</label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="label">DNS提供商</label>
+                        <InputSelect class="select" @bind-Value="applyModel.DnsProvider">
+                            <option value="Aliyun">阿里云DNS</option>
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label class="label">邮箱地址（用于ACME账户）</label>
+                        <InputText class="input" @bind-Value="applyModel.Email" placeholder="your-email@example.com" type="email" />
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4">
+                        <button type="button" class="btn btn-secondary" @onclick="NavigateToCertificates">取消</button>
+                        <button type="submit" class="btn btn-primary" disabled="@IsApplying">
+                            @if (IsApplying)
+                            {
+                                <span>申请中...</span>
+                            }
+                            else
+                            {
+                                <span>申请证书</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private class ApplyCertificateModel
+    {
+        public string Domain { get; set; } = string.Empty;
+        public bool IsWildcard { get; set; }
+        public string DnsProvider { get; set; } = "Aliyun";
+        public string Email { get; set; } = string.Empty;
+    }
+
+    private ApplyCertificateModel applyModel = new();
+    private bool IsApplying { get; set; }
+
+    private void NavigateToCertificates()
+    {
+        NavigationManager.NavigateTo("/certificates");
+    }
+
+    private async Task HandleApply()
+    {
+        try
+        {
+            IsApplying = true;
+
+            var dnsProvider = new DnsProvider
+            {
+                Id = Guid.NewGuid(),
+                ProviderType = DnsProviderType.Aliyun,
+                AccessKeyId = string.Empty,
+                AccessKeySecret = string.Empty,
+                RegionId = "cn-hangzhou",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await CertificateService.RequestCertificateAsync(
+                applyModel.Domain,
+                applyModel.IsWildcard,
+                dnsProvider,
+                true
+            );
+
+            NavigationManager.NavigateTo("/certificates");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            IsApplying = false;
+        }
+    }
+}

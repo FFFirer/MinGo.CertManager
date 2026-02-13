@@ -1,0 +1,81 @@
+@using MinGo.CertManager.Core.Entities
+
+<Modal IsVisible="@IsVisible" Title="导出证书" OnClose="HandleClose" OnOverlayClick="HandleClose">
+    <div class="mb-4">
+        <label class="label">导出格式</label>
+        <select class="select" @onchange="OnFormatChange">
+            <option value="Pfx" selected="@(ExportFormat == "Pfx")">PFX/P12</option>
+            <option value="Pem" selected="@(ExportFormat == "Pem")">PEM</option>
+            <option value="Crt" selected="@(ExportFormat == "Crt")">CRT/CER</option>
+        </select>
+    </div>
+
+    @if (ExportFormat == "Pfx")
+    {
+        <div class="mb-6">
+            <label class="label">密码（可选）</label>
+            <input type="password" class="input" @bind="ExportPassword" placeholder="留空则不设置密码" />
+        </div>
+    }
+
+    <div class="flex justify-end gap-3">
+        <button class="btn btn-secondary" @onclick="HandleClose">取消</button>
+        <button class="btn btn-primary" @onclick="HandleExport" disabled="@IsExporting">
+            @if (IsExporting)
+            {
+                <span>导出中...</span>
+            }
+            else
+            {
+                <span>导出</span>
+            }
+        </button>
+    </div>
+</Modal>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public Certificate? Certificate { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback<(Certificate Certificate, string Format, string? Password)> OnExport { get; set; }
+
+    private string ExportFormat { get; set; } = "Pfx";
+    private string ExportPassword { get; set; } = string.Empty;
+    private bool IsExporting { get; set; }
+
+    private async Task HandleClose()
+    {
+        ExportFormat = "Pfx";
+        ExportPassword = string.Empty;
+        IsExporting = false;
+        await OnClose.InvokeAsync();
+    }
+
+    private void OnFormatChange(ChangeEventArgs e)
+    {
+        ExportFormat = e.Value?.ToString() ?? "Pfx";
+    }
+
+    private async Task HandleExport()
+    {
+        if (Certificate == null) return;
+
+        IsExporting = true;
+        try
+        {
+            await OnExport.InvokeAsync((Certificate, ExportFormat, ExportFormat == "Pfx" ? ExportPassword : null));
+            await HandleClose();
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
+}

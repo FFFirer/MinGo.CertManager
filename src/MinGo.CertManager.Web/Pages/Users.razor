@@ -1,0 +1,124 @@
+@page "/users"
+@using MinGo.CertManager.Core.Entities
+
+<PageTitle>用户管理</PageTitle>
+
+<div class="mb-8">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold mb-2">用户管理</h1>
+            <p class="text-muted-foreground">管理系统用户</p>
+        </div>
+        <button class="btn btn-primary" @onclick="ShowAddUserDialog">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            添加用户
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users)
+                {
+                    <tr>
+                        <td class="font-medium">@user.Username</td>
+                        <td><span class="badge badge-info">@GetRoleText(user.Role)</span></td>
+                        <td>@user.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            @if (user.Role != UserRole.Admin)
+                            {
+                                <button class="btn btn-secondary" @onclick="@(() => DeleteUser(user.Id))">删除</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<AddUserModal IsVisible="@showAddUserModal" OnClose="HideAddUserDialog" OnAdd="HandleAddUser" />
+
+@code {
+    private List<User> users = new();
+    private bool showAddUserModal = false;
+
+    protected override void OnInitialized()
+    {
+        LoadUsers();
+    }
+
+    private void LoadUsers()
+    {
+        users = new List<User>
+        {
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "admin",
+                Role = UserRole.Admin,
+                CreatedAt = DateTime.UtcNow.AddDays(-30)
+            },
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "user1",
+                Role = UserRole.User,
+                CreatedAt = DateTime.UtcNow.AddDays(-15)
+            }
+        };
+    }
+
+    private string GetRoleText(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "管理员",
+            UserRole.User => "普通用户",
+            _ => "未知"
+        };
+    }
+
+    private void ShowAddUserDialog()
+    {
+        showAddUserModal = true;
+    }
+
+    private void HideAddUserDialog()
+    {
+        showAddUserModal = false;
+    }
+
+    private Task HandleAddUser(User user)
+    {
+        user.Id = Guid.NewGuid();
+        user.CreatedAt = DateTime.UtcNow;
+        if (string.IsNullOrEmpty(user.Role.ToString()))
+        {
+            user.Role = UserRole.User;
+        }
+        users.Add(user);
+        return Task.CompletedTask;
+    }
+
+    private void DeleteUser(Guid userId)
+    {
+        var user = users.FirstOrDefault(u => u.Id == userId);
+        if (user != null)
+        {
+            users.Remove(user);
+        }
+    }
+}
