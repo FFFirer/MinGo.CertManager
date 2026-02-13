@@ -97,7 +97,7 @@ body {
 }
 
 .select {
-  width: 100%;
+  /* width: 100%; */
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   border: 1px solid rgb(229, 229, 229);
@@ -112,6 +112,10 @@ body {
   outline: none;
   border-color: rgb(0, 120, 212);
   box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+.select:hover:not(:focus) {
+  border-color: rgb(0, 120, 212);
 }
 
 .card {
