@@ -5,6 +5,10 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
   ],
+  server: {
+    port: 5174,
+    open: true,
+  },
   build: {
     outDir: './wwwroot',
     emptyOutDir: false,
