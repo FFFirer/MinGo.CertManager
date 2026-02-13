@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # 技术框架
 
 - 使用ASP.NET Core Blazor，渲染模式为Auto
@@ -42,6 +46,6 @@
 - sqlite
 - acme.sh
 - Blazor
-- Bootstrap
+- TailwindCSS v4
 - js/css
 - Quartz.NET

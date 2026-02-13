@@ -9,160 +9,125 @@
 
 <PageTitle>证书管理</PageTitle>
 
-<div class="container mt-4">
-    <div class="row mb-4">
-        <div class="col">
-            <h2>证书管理</h2>
-        </div>
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-foreground mb-2">证书管理</h1>
+        <p class="text-muted-foreground">管理和导出您的SSL证书</p>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-md-4">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="lg:col-span-1">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">申请新证书</h5>
-                    <EditForm Model="@newCertificateModel" OnValidSubmit="@HandleSubmit">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary />
+                <h2 class="text-lg font-semibold mb-4">申请新证书</h2>
+                <EditForm Model="@newCertificateModel" OnValidSubmit="@HandleSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="mb-4 text-destructive" />
 
-                        <div class="mb-3">
-                            <label class="form-label">域名</label>
-                            <InputText class="form-control" @bind-Value="newCertificateModel.Domain" />
-                            <ValidationMessage For="@(() => newCertificateModel.Domain)" />
-                        </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">域名</label>
+                        <InputText class="w-full px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" @bind-Value="newCertificateModel.Domain" placeholder="example.com" />
+                        <ValidationMessage For="@(() => newCertificateModel.Domain)" class="text-destructive text-sm mt-1" />
+                    </div>
 
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <InputCheckbox class="form-check-input" @bind-Value="newCertificateModel.IsWildcard" />
-                                <label class="form-check-label">泛域名 (*.domain.com)</label>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <InputCheckbox class="form-check-input" @bind-Value="useStaging" />
-                                <label class="form-check-label">使用Let's Encrypt测试环境</label>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
-                            @if (isSubmitting)
-                            {
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                <span>申请中...</span>
-                            }
-                            else
-                            {
-                                <span>申请证书</span>
-                            }
-                        </button>
-                    </EditForm>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">查询条件</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">证书状态</label>
-                            <InputSelect class="form-select" @bind-Value="filterStatus">
-                                <option value="">全部</option>
-                                <option value="Pending">待处理</option>
-                                <option value="Active">有效</option>
-                                <option value="Expiring">即将过期</option>
-                                <option value="Expired">已过期</option>
-                                <option value="Failed">失败</option>
-                            </InputSelect>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">域名搜索</label>
-                            <InputText class="form-control" @bind-Value="searchDomain" placeholder="输入域名关键词" />
+                    <div class="mb-4">
+                        <div class="flex items-center">
+                            <InputCheckbox class="w-4 h-4 rounded border-input focus:ring-2 focus:ring-ring" @bind-Value="newCertificateModel.IsWildcard" />
+                            <label class="ml-2 text-sm">泛域名 (*.domain.com)</label>
                         </div>
                     </div>
-                    <button class="btn btn-secondary" @onclick="LoadCertificates">查询</button>
-                </div>
+
+                    <div class="mb-4">
+                        <div class="flex items-center">
+                            <InputCheckbox class="w-4 h-4 rounded border-input focus:ring-2 focus:ring-ring" @bind-Value="useStaging" />
+                            <label class="ml-2 text-sm">使用Let's Encrypt测试环境</label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span>申请中...</span>
+                        }
+                        else
+                        {
+                            <span>申请证书</span>
+                        }
+                    </button>
+                </EditForm>
             </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col">
+        <div class="lg:col-span-2">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">证书列表</h5>
-                    @if (certificates == null || certificates.Count == 0)
-                    {
-                        <p class="text-muted">暂无证书</p>
-                    }
-                    else
-                    {
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>域名</th>
-                                    <th>状态</th>
-                                    <th>ACME状态</th>
-                                    <th>申请时间</th>
-                                    <th>过期时间</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var cert in certificates)
-                                {
-                                    <tr>
-                                        <td>
-                                            @cert.Domain
-                                            @if (cert.IsWildcard)
-                                            {
-                                                <span class="badge bg-info">泛域名</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @switch (cert.Status)
-                                            {
-                                                case CertificateStatus.Active:
-                                                    <span class="badge bg-success">有效</span>
-                                                    break;
-                                                case CertificateStatus.Pending:
-                                                    <span class="badge bg-warning">待处理</span>
-                                                    break;
-                                                case CertificateStatus.Expiring:
-                                                    <span class="badge bg-danger">即将过期</span>
-                                                    break;
-                                                case CertificateStatus.Expired:
-                                                    <span class="badge bg-secondary">已过期</span>
-                                                    break;
-                                                case CertificateStatus.Failed:
-                                                    <span class="badge bg-dark">失败</span>
-                                                    break;
-                                            }
-                                        </td>
-                                        <td>
-                                            @GetAcmeStatusText(cert.AcmeStatus)
-                                            @if (!string.IsNullOrEmpty(cert.AcmeStatusMessage))
-                                            {
-                                                <small class="text-muted d-block">@cert.AcmeStatusMessage</small>
-                                            }
-                                        </td>
-                                        <td>@cert.IssuedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                        <td>@cert.ExpiresAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                        <td>
-                                            <button class="btn btn-sm btn-primary" @onclick="@(() => ShowExportDialog(cert))">导出</button>
-                                            @if (cert.Status == CertificateStatus.Active)
-                                            {
-                                                <button class="btn btn-sm btn-warning" @onclick="@(() => RenewCertificate(cert.Id))">续签</button>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-lg font-semibold">证书列表</h2>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <InputSelect class="px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" @bind-Value="filterStatus" @onchange="LoadCertificates">
+                            <option value="">全部状态</option>
+                            <option value="Pending">待处理</option>
+                            <option value="Active">有效</option>
+                            <option value="Expiring">即将过期</option>
+                            <option value="Expired">已过期</option>
+                            <option value="Failed">失败</option>
+                        </InputSelect>
+                        <InputText class="px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" @bind-Value="searchDomain" placeholder="搜索域名" @onkeyup="LoadCertificates" />
+                    </div>
                 </div>
+
+                @if (certificates == null || certificates.Count == 0)
+                {
+                    <div class="text-center py-12 text-muted-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>暂无证书</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        @foreach (var cert in certificates)
+                        {
+                            <div class="border border-border rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h3 class="font-semibold text-foreground">@cert.Domain</h3>
+                                        @if (cert.IsWildcard)
+                                        {
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">泛域名</span>
+                                        }
+                                    </div>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium @GetStatusClass(cert.Status)">
+                                        @GetStatusText(cert.Status)
+                                    </span>
+                                </div>
+
+                                <div class="space-y-2 text-sm text-muted-foreground mb-4">
+                                    <div class="flex justify-between">
+                                        <span>申请时间:</span>
+                                        <span class="text-foreground">@cert.IssuedAt.ToString("yyyy-MM-dd")</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>过期时间:</span>
+                                        <span class="text-foreground @GetExpiryClass(cert.ExpiresAt)">@cert.ExpiresAt.ToString("yyyy-MM-dd")</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>ACME状态:</span>
+                                        <span class="text-foreground">@GetAcmeStatusText(cert.AcmeStatus)</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button class="btn-primary text-sm" @onclick="@(() => ShowExportDialog(cert))">导出</button>
+                                    @if (cert.Status == CertificateStatus.Active)
+                                    {
+                                        <button class="btn-secondary text-sm" @onclick="@(() => RenewCertificate(cert.Id))">续签</button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -170,44 +135,46 @@
 
 @if (showExportDialog)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">导出证书</h5>
-                    <button type="button" class="btn-close" @onclick="HideExportDialog"></button>
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @onclick="HideExportDialog">
+        <div class="card max-w-md w-full" @onclick:stopPropagation>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">导出证书</h3>
+                <button class="text-muted-foreground hover:text-foreground" @onclick="HideExportDialog">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">导出格式</label>
+                <InputSelect class="w-full px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" @bind-Value="exportFormat">
+                    <option value="Pfx">PFX/P12</option>
+                    <option value="Pem">PEM</option>
+                    <option value="Crt">CRT/CER</option>
+                </InputSelect>
+            </div>
+
+            @if (exportFormat == "Pfx")
+            {
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-2">密码（可选）</label>
+                    <InputText class="w-full px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground" type="password" @bind-Value="exportPassword" placeholder="留空则不设置密码" />
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">导出格式</label>
-                        <InputSelect class="form-select" @bind-Value="exportFormat">
-                            <option value="Pfx">PFX/P12</option>
-                            <option value="Pem">PEM</option>
-                            <option value="Crt">CRT/CER</option>
-                        </InputSelect>
-                    </div>
-                    @if (exportFormat == "Pfx")
+            }
+
+            <div class="flex justify-end gap-3">
+                <button class="btn-secondary" @onclick="HideExportDialog">取消</button>
+                <button class="btn-primary" @onclick="ExportCertificate" disabled="@isExporting">
+                    @if (isExporting)
                     {
-                        <div class="mb-3">
-                            <label class="form-label">密码（可选）</label>
-                            <InputText class="form-control" type="password" @bind-Value="exportPassword" />
-                        </div>
+                        <span>导出中...</span>
                     }
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="HideExportDialog">取消</button>
-                    <button type="button" class="btn btn-primary" @onclick="ExportCertificate" disabled="@isExporting">
-                        @if (isExporting)
-                        {
-                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                            <span>导出中...</span>
-                        }
-                        else
-                        {
-                            <span>导出</span>
-                        }
-                    </button>
-                </div>
+                    else
+                    {
+                        <span>导出</span>
+                    }
+                </button>
             </div>
         </div>
     </div>
@@ -236,6 +203,43 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadCertificates();
+    }
+
+    private string GetStatusText(CertificateStatus status)
+    {
+        return status switch
+        {
+            CertificateStatus.Active => "有效",
+            CertificateStatus.Pending => "待处理",
+            CertificateStatus.Expiring => "即将过期",
+            CertificateStatus.Expired => "已过期",
+            CertificateStatus.Failed => "失败",
+            _ => "未知"
+        };
+    }
+
+    private string GetStatusClass(CertificateStatus status)
+    {
+        return status switch
+        {
+            CertificateStatus.Active => "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200",
+            CertificateStatus.Pending => "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200",
+            CertificateStatus.Expiring => "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200",
+            CertificateStatus.Expired => "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200",
+            CertificateStatus.Failed => "bg-gray-900 dark:bg-gray-800 text-white dark:text-gray-100",
+            _ => "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+        };
+    }
+
+    private string GetExpiryClass(DateTime expiryDate)
+    {
+        var daysRemaining = (expiryDate - DateTime.UtcNow).Days;
+        return daysRemaining switch
+        {
+            <= 0 => "text-destructive",
+            <= 30 => "text-yellow-600 dark:text-yellow-400",
+            _ => "text-foreground"
+        };
     }
 
     private string GetAcmeStatusText(AcmeProcessStatus status)

@@ -88,3 +88,4 @@ Thumbs.db
 
 # Demos
 demos/
+node_modules/

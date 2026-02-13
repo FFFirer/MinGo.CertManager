@@ -1,17 +1,19 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">MinGo.CertManager</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
+<div class="top-row ps-3 bg-gray-800 text-white">
+    <div class="container mx-auto flex justify-between items-center">
+        <a class="text-xl font-bold" href="">MinGo.CertManager</a>
+        <button title="Navigation menu" class="p-2" @onclick="ToggleNavMenu">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
         </button>
     </div>
 </div>
 
 <div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="certificates" Match="NavLinkMatch.Prefix">
-                <span class="oi oi-lock-locked" aria-hidden="true"></span> 证书管理
+    <nav class="flex-column bg-gray-800 text-white">
+        <div class="p-3">
+            <NavLink class="block px-3 py-2 rounded-md hover:bg-gray-700" href="certificates" Match="NavLinkMatch.Prefix">
+                <span class="mr-2"></span> 证书管理
             </NavLink>
         </div>
     </nav>

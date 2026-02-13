@@ -1,4 +1,5 @@
-﻿﻿@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
+@inject IJSRuntime JS
 
 <PageTitle>MinGo.CertManager.Web</PageTitle>
 
@@ -8,8 +9,20 @@
     </div>
 
     <main>
-        <div class="top-row px-4">
+        <div class="top-row px-4 flex justify-between items-center">
             <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+            <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" @onclick="ToggleDarkMode">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    @if (isDarkMode)
+                    {
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    }
+                    else
+                    {
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    }
+                </svg>
+            </button>
         </div>
 
         <article class="content px-4">
@@ -17,3 +30,46 @@
         </article>
     </main>
 </div>
+
+@code {
+    private bool isDarkMode = false;
+    private bool _isInitialized = false;
+
+    protected override Task OnInitializedAsync()
+    {
+        // 在OnInitializedAsync中不执行JavaScript interop调用
+        // 只初始化默认值
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_isInitialized)
+        {
+            // 从本地存储加载主题设置
+            var savedTheme = await JS.InvokeAsync<string>("localStorage.getItem", "theme");
+            isDarkMode = savedTheme == "dark";
+            await ApplyTheme();
+            _isInitialized = true;
+        }
+    }
+
+    private async Task ToggleDarkMode()
+    {
+        isDarkMode = !isDarkMode;
+        await JS.InvokeVoidAsync("localStorage.setItem", "theme", isDarkMode ? "dark" : "light");
+        await ApplyTheme();
+    }
+
+    private async Task ApplyTheme()
+    {
+        if (isDarkMode)
+        {
+            await JS.InvokeVoidAsync("eval", "document.documentElement.classList.add('dark')");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("eval", "document.documentElement.classList.remove('dark')");
+        }
+    }
+}
