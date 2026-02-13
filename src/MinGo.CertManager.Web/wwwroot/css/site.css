@@ -2,6 +2,49 @@
 
 /* 确保与Tailwind CSS的字体设置兼容 */
 
+/* 导航链接样式 */
+.nav-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.nav-link.active {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+/* 移动端导航链接样式 */
+.mobile-nav-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    transition: all 0.2s ease;
+}
+
+.mobile-nav-link:hover {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.mobile-nav-link.active {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
 /* 保留必要的Blazor错误UI样式 */
 #blazor-error-ui {
     background: var(--background);

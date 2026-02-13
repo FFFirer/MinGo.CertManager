@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MinGo.CertManager - 证书管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'rgb(0, 120, 212)',
+                        'primary-hover': 'rgb(0, 100, 180)',
+                        background: 'rgb(255, 255, 255)',
+                        foreground: 'rgb(23, 23, 23)',
+                        card: 'rgb(255, 255, 255)',
+                        'card-foreground': 'rgb(23, 23, 23)',
+                        muted: 'rgb(243, 244, 246)',
+                        'muted-foreground': 'rgb(115, 115, 115)',
+                        accent: 'rgb(243, 249, 255)',
+                        'accent-foreground': 'rgb(23, 23, 23)',
+                        border: 'rgb(229, 229, 229)',
+                        input: 'rgb(229, 229, 229)',
+                        destructive: 'rgb(220, 38, 38)',
+                    },
+                    dark: {
+                        background: 'rgb(32, 32, 32)',
+                        foreground: 'rgb(255, 255, 255)',
+                        card: 'rgb(44, 44, 44)',
+                        'card-foreground': 'rgb(255, 255, 255)',
+                        muted: 'rgb(60, 60, 60)',
+                        'muted-foreground': 'rgb(163, 163, 163)',
+                        accent: 'rgb(51, 51, 51)',
+                        'accent-foreground': 'rgb(255, 255, 255)',
+                        border: 'rgb(60, 60, 60)',
+                        input: 'rgb(60, 60, 60)',
+                    },
+                    fontFamily: {
+                        sans: ['"Segoe UI"', '"Segoe UI Web (West European)"', '-apple-system', 'BlinkMacSystemFont', '"Roboto"', '"Helvetica Neue"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'sm': '0 2px 4px rgba(0, 0, 0, 0.08)',
+                        'md': '0 4px 8px rgba(0, 0, 0, 0.12)',
+                        'lg': '0 8px 16px rgba(0, 0, 0, 0.16)',
+                        'xl': '0 12px 24px rgba(0, 0, 0, 0.20)',
+                    },
+                    transitionDuration: {
+                        '200': '200ms',
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            border-color: rgb(var(--border));
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 0.375rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border: none;
+            outline: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::before {
+            width: 200px;
+            height: 200px;
+        }
+
+        .btn-primary {
+            background-color: rgb(0, 120, 212);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: rgb(0, 100, 180);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: rgb(243, 249, 255);
+            color: rgb(23, 23, 23);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgb(233, 245, 255);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .btn-destructive {
+            background-color: rgb(220, 38, 38);
+            color: white;
+        }
+
+        .btn-destructive:hover {
+            background-color: rgb(185, 28, 28);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            border: 1px solid rgb(229, 229, 229);
+            border-radius: 0.375rem;
+            background-color: rgb(255, 255, 255);
+            color: rgb(23, 23, 23);
+            transition: all 0.2s;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: rgb(0, 120, 212);
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+
+        .input:hover:not(:focus) {
+            border-color: rgb(0, 120, 212);
+        }
+
+        .select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            border: 1px solid rgb(229, 229, 229);
+            border-radius: 0.375rem;
+            background-color: rgb(255, 255, 255);
+            color: rgb(23, 23, 23);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .select:focus {
+            outline: none;
+            border-color: rgb(0, 120, 212);
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+
+        .card {
+            background-color: rgb(255, 255, 255);
+            color: rgb(23, 23, 23);
+            border-radius: 0.5rem;
+            border: 1px solid rgb(229, 229, 229);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 0.25rem;
+        }
+
+        .badge-success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: rgb(115, 115, 115);
+            transition: all 0.2s;
+            border-radius: 0.375rem;
+        }
+
+        .nav-link:hover {
+            background-color: rgb(243, 249, 255);
+            color: rgb(23, 23, 23);
+            transform: translateY(-1px);
+        }
+
+        .nav-link.active {
+            background-color: rgb(0, 120, 212);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .modal {
+            background-color: rgb(255, 255, 255);
+            color: rgb(23, 23, 23);
+            border-radius: 0.75rem;
+            border: 1px solid rgb(229, 229, 229);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.20);
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+        }
+
+        .checkbox {
+            width: 1rem;
+            height: 1rem;
+            border: 1px solid rgb(229, 229, 229);
+            border-radius: 0.25rem;
+            background-color: rgb(255, 255, 255);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .checkbox:checked {
+            background-color: rgb(0, 120, 212);
+            border-color: rgb(0, 120, 212);
+        }
+
+        .checkbox:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+
+        .label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: rgb(23, 23, 23);
+            margin-bottom: 0.25rem;
+        }
+
+        .dark .input,
+        .dark .select {
+            background-color: rgb(32, 32, 32);
+            color: rgb(255, 255, 255);
+            border-color: rgb(60, 60, 60);
+        }
+
+        .dark .card,
+        .dark .modal {
+            background-color: rgb(44, 44, 44);
+            color: rgb(255, 255, 255);
+            border-color: rgb(60, 60, 60);
+        }
+
+        .dark .nav-link {
+            color: rgb(163, 163, 163);
+        }
+
+        .dark .nav-link:hover {
+            background-color: rgb(51, 51, 51);
+            color: rgb(255, 255, 255);
+        }
+
+        .dark .btn-secondary {
+            background-color: rgb(51, 51, 51);
+            color: rgb(255, 255, 255);
+        }
+
+        .dark .btn-secondary:hover {
+            background-color: rgb(60, 60, 60);
+        }
+
+        .dark .badge-success {
+            background-color: #064e3b;
+            color: #d1fae5;
+        }
+
+        .dark .badge-warning {
+            background-color: #78350f;
+            color: #fef3c7;
+        }
+
+        .dark .badge-error {
+            background-color: #7f1d1d;
+            color: #fee2e2;
+        }
+
+        .dark .badge-info {
+            background-color: #1e3a8a;
+            color: #dbeafe;
+        }
+
+        .dark .label {
+            color: rgb(255, 255, 255);
+        }
+
+        .page-section {
+            display: none;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        .content-page {
+            display: none;
+        }
+
+        .content-page.active {
+            display: block;
+        }
+
+        .certificate-row {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid rgb(229, 229, 229);
+            transition: all 0.2s;
+        }
+
+        .certificate-row:hover {
+            background-color: rgb(243, 249, 255);
+        }
+
+        .dark .certificate-row {
+            border-bottom-color: rgb(60, 60, 60);
+        }
+
+        .dark .certificate-row:hover {
+            background-color: rgb(51, 51, 51);
+        }
+
+        .certificate-row:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground min-h-screen">
+    <!-- 登录页面 -->
+    <div id="login-page" class="page-section active">
+        <div class="min-h-screen flex items-center justify-center px-4">
+            <div class="card p-8 w-full max-w-md">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-primary mb-2">MinGo.CertManager</h1>
+                    <p class="text-muted-foreground">证书管理系统</p>
+                </div>
+
+                <form id="login-form" class="space-y-6">
+                    <div>
+                        <label class="label">用户名</label>
+                        <input type="text" class="input" placeholder="请输入用户名" value="admin">
+                    </div>
+
+                    <div>
+                        <label class="label">密码</label>
+                        <input type="password" class="input" placeholder="请输入密码" value="admin">
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="checkbox" class="checkbox" id="remember">
+                        <label for="remember" class="ml-2 text-sm">记住我</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-full">登录</button>
+                </form>
+
+                <div class="mt-6 text-center text-sm text-muted-foreground">
+                    <p>默认管理员账号: admin / admin</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主应用 -->
+    <div id="main-app" class="page-section">
+        <!-- 导航栏 -->
+        <nav class="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-8">
+                        <a href="#" class="text-xl font-bold text-primary hover:text-primary/80 transition-colors">
+                            MinGo.CertManager
+                        </a>
+                        <div class="hidden md:flex items-center space-x-1">
+                            <button class="nav-link active" data-page="certificates">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                证书列表
+                            </button>
+                            <button class="nav-link admin-only" data-page="users">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                用户管理
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <button id="theme-toggle" class="p-2 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors" aria-label="切换主题">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                        </button>
+
+                        <div class="relative">
+                            <button id="user-menu-btn" class="flex items-center space-x-2 p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+                                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+                                    A
+                                </div>
+                                <span class="hidden sm:block text-sm font-medium">admin</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 card shadow-lg z-50">
+                                <div class="py-1">
+                                    <div class="px-4 py-2 border-b border-border">
+                                        <p class="text-sm font-medium">admin</p>
+                                        <p class="text-xs text-muted-foreground">管理员</p>
+                                    </div>
+                                    <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
+                                        个人设置
+                                    </button>
+                                    <button id="logout-btn" class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent transition-colors">
+                                        退出登录
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="mobile-menu-btn" class="md:hidden p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors" aria-label="菜单">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 移动端菜单 -->
+            <div id="mobile-menu" class="hidden md:hidden border-t border-border bg-background">
+                <div class="px-2 pt-2 pb-3 space-y-1">
+                    <button class="nav-link active w-full" data-page="certificates">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        证书列表
+                    </button>
+                    <button class="nav-link admin-only w-full" data-page="users">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        用户管理
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="pt-16">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+                <!-- 证书列表页面 -->
+                <div id="certificates-page" class="content-page active">
+                    <div class="mb-8">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h1 class="text-3xl font-bold mb-2">证书列表</h1>
+                                <p class="text-muted-foreground">查看和管理您的SSL证书</p>
+                            </div>
+                            <button id="goto-apply" class="btn btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                申请证书
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="p-6 border-b border-border">
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <select class="select w-full sm:w-48">
+                                    <option value="">全部状态</option>
+                                    <option value="Pending">待处理</option>
+                                    <option value="Active">有效</option>
+                                    <option value="Expiring">即将过期</option>
+                                    <option value="Expired">已过期</option>
+                                    <option value="Failed">失败</option>
+                                </select>
+                                <input type="text" class="input flex-1" placeholder="搜索域名">
+                            </div>
+                        </div>
+
+                        <div class="divide-y divide-border">
+                            <!-- 证书行1 -->
+                            <div class="certificate-row">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-shrink-0">
+                                            <h3 class="font-semibold text-lg">example.com</h3>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span class="badge badge-info">泛域名</span>
+                                                <span class="badge badge-success">有效</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                                        <div>
+                                            <span class="text-muted-foreground">申请时间:</span>
+                                            <span class="ml-2">2024-01-15</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground">过期时间:</span>
+                                            <span class="ml-2">2024-04-15</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground">ACME状态:</span>
+                                            <span class="ml-2">已完成</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 ml-4">
+                                    <button class="btn btn-primary">导出</button>
+                                    <button class="btn btn-secondary">续签</button>
+                                </div>
+                            </div>
+
+                            <!-- 证书行2 -->
+                            <div class="certificate-row">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-shrink-0">
+                                            <h3 class="font-semibold text-lg">test.example.com</h3>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span class="badge badge-warning">待处理</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                                        <div>
+                                            <span class="text-muted-foreground">申请时间:</span>
+                                            <span class="ml-2">2024-02-20</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground">过期时间:</span>
+                                            <span class="ml-2">-</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground">ACME状态:</span>
+                                            <span class="ml-2">创建DNS记录</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 ml-4">
+                                    <button class="btn btn-primary" disabled>导出</button>
+                                </div>
+                            </div>
+
+                            <!-- 证书行3 -->
+                            <div class="certificate-row">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-shrink-0">
+                                            <h3 class="font-semibold text-lg">old.example.com</h3>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span class="badge badge-error">已过期</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                                        <div>
+                                            <span class="text-muted-foreground">申请时间:</span>
+                                            <span class="ml-2">2023-10-01</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground">过期时间:</span>
+                                            <span class="ml-2 text-destructive">2024-01-01</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground">ACME状态:</span>
+                                            <span class="ml-2">已完成</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 ml-4">
+                                    <button class="btn btn-primary">导出</button>
+                                    <button class="btn btn-secondary">续签</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 证书申请页面 -->
+                <div id="apply-page" class="content-page">
+                    <div class="mb-8">
+                        <button id="back-to-list" class="btn btn-secondary mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            返回列表
+                        </button>
+                        <h1 class="text-3xl font-bold mb-2">申请证书</h1>
+                        <p class="text-muted-foreground">填写信息申请新的SSL证书</p>
+                    </div>
+
+                    <div class="card max-w-2xl">
+                        <div class="p-6">
+                            <form class="space-y-6">
+                                <div>
+                                    <label class="label">域名</label>
+                                    <input type="text" class="input" placeholder="example.com">
+                                    <p class="text-sm text-muted-foreground mt-1">请输入要申请证书的域名</p>
+                                </div>
+
+                                <div class="flex items-center">
+                                    <input type="checkbox" class="checkbox" id="wildcard">
+                                    <label for="wildcard" class="ml-2">泛域名 (*.domain.com)</label>
+                                </div>
+                                <p class="text-sm text-muted-foreground ml-6">勾选后将申请泛域名证书，可保护主域名及其所有子域名</p>
+
+                                <div class="flex items-center">
+                                    <input type="checkbox" class="checkbox" id="staging">
+                                    <label for="staging" class="ml-2">使用Let's Encrypt测试环境</label>
+                                </div>
+                                <p class="text-sm text-muted-foreground ml-6">勾选后将使用Let's Encrypt的测试环境，测试证书不会被浏览器信任</p>
+
+                                <div class="pt-4 border-t border-border">
+                                    <h3 class="text-lg font-semibold mb-4">DNS配置</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="label">DNS提供商</label>
+                                            <select class="select">
+                                                <option value="aliyun">阿里云</option>
+                                                <option value="cloudflare">Cloudflare</option>
+                                                <option value="dnspod">腾讯云DNSPod</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="label">Access Key ID</label>
+                                            <input type="text" class="input" placeholder="请输入Access Key ID">
+                                        </div>
+                                        <div>
+                                            <label class="label">Access Key Secret</label>
+                                            <input type="password" class="input" placeholder="请输入Access Key Secret">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-3 pt-4">
+                                    <button type="button" id="cancel-apply" class="btn btn-secondary">取消</button>
+                                    <button type="submit" class="btn btn-primary flex-1">提交申请</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 用户管理页面 -->
+                <div id="users-page" class="content-page">
+                    <div class="mb-8">
+                        <h1 class="text-3xl font-bold mb-2">用户管理</h1>
+                        <p class="text-muted-foreground">管理系统用户和权限</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="p-6 border-b border-border">
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <input type="text" class="input flex-1" placeholder="搜索用户名">
+                                <button class="btn btn-primary">添加用户</button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b border-border">
+                                        <th class="text-left py-3 px-4 font-semibold text-sm">用户名</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-sm">角色</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-sm">创建时间</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-sm">状态</th>
+                                        <th class="text-right py-3 px-4 font-semibold text-sm">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-border hover:bg-accent">
+                                        <td class="py-3 px-4">
+                                            <div class="flex items-center">
+                                                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium mr-3">
+                                                    A
+                                                </div>
+                                                <span class="font-medium">admin</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge badge-info">管理员</span>
+                                        </td>
+                                        <td class="py-3 px-4 text-muted-foreground">2024-01-01</td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge badge-success">活跃</span>
+                                        </td>
+                                        <td class="py-3 px-4 text-right">
+                                            <button class="btn btn-secondary text-sm" disabled>编辑</button>
+                                            <button class="btn btn-destructive text-sm" disabled>删除</button>
+                                        </td>
+                                    </tr>
+                                    <tr class="border-b border-border hover:bg-accent">
+                                        <td class="py-3 px-4">
+                                            <div class="flex items-center">
+                                                <div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-medium mr-3">
+                                                    U
+                                                </div>
+                                                <span class="font-medium">user1</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge badge-warning">用户</span>
+                                        </td>
+                                        <td class="py-3 px-4 text-muted-foreground">2024-02-01</td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge badge-success">活跃</span>
+                                        </td>
+                                        <td class="py-3 px-4 text-right">
+                                            <button class="btn btn-secondary text-sm">编辑</button>
+                                            <button class="btn btn-destructive text-sm">删除</button>
+                                        </td>
+                                    </tr>
+                                    <tr class="border-b border-border hover:bg-accent">
+                                        <td class="py-3 px-4">
+                                            <div class="flex items-center">
+                                                <div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-medium mr-3">
+                                                    T
+                                                </div>
+                                                <span class="font-medium">testuser</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge badge-warning">用户</span>
+                                        </td>
+                                        <td class="py-3 px-4 text-muted-foreground">2024-02-15</td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge badge-error">禁用</span>
+                                        </td>
+                                        <td class="py-3 px-4 text-right">
+                                            <button class="btn btn-secondary text-sm">编辑</button>
+                                            <button class="btn btn-destructive text-sm">删除</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- 导出证书模态框 -->
+    <div id="export-modal" class="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4 hidden">
+        <div class="modal max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">导出证书</h3>
+                    <button id="close-modal" class="text-muted-foreground hover:text-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="mb-4">
+                    <label class="label">导出格式</label>
+                    <select class="select">
+                        <option value="Pfx">PFX/P12</option>
+                        <option value="Pem">PEM</option>
+                        <option value="Crt">CRT/CER</option>
+                    </select>
+                </div>
+
+                <div class="mb-6">
+                    <label class="label">密码（可选）</label>
+                    <input type="password" class="input" placeholder="留空则不设置密码">
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button id="cancel-export" class="btn btn-secondary">取消</button>
+                    <button class="btn btn-primary">导出</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加用户模态框 -->
+    <div id="add-user-modal" class="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4 hidden">
+        <div class="modal max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">添加用户</h3>
+                    <button id="close-user-modal" class="text-muted-foreground hover:text-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form class="space-y-4">
+                    <div>
+                        <label class="label">用户名</label>
+                        <input type="text" class="input" placeholder="请输入用户名">
+                    </div>
+
+                    <div>
+                        <label class="label">密码</label>
+                        <input type="password" class="input" placeholder="请输入密码">
+                    </div>
+
+                    <div>
+                        <label class="label">确认密码</label>
+                        <input type="password" class="input" placeholder="请再次输入密码">
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4">
+                        <button type="button" id="cancel-add-user" class="btn btn-secondary">取消</button>
+                        <button type="submit" class="btn btn-primary">添加</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面切换
+        document.querySelectorAll('[data-page]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const page = this.getAttribute('data-page');
+
+                // 更新导航链接状态
+                document.querySelectorAll('[data-page]').forEach(link => {
+                    link.classList.remove('active');
+                });
+                document.querySelectorAll(`[data-page="${page}"]`).forEach(link => {
+                    link.classList.add('active');
+                });
+
+                // 切换页面内容
+                document.querySelectorAll('.content-page').forEach(p => {
+                    p.classList.remove('active');
+                });
+                document.getElementById(`${page}-page`).classList.add('active');
+
+                // 关闭移动端菜单
+                document.getElementById('mobile-menu').classList.add('hidden');
+            });
+        });
+
+        // 跳转到申请页面
+        document.getElementById('goto-apply').addEventListener('click', function() {
+            document.querySelectorAll('.content-page').forEach(p => {
+                p.classList.remove('active');
+            });
+            document.getElementById('apply-page').classList.add('active');
+        });
+
+        // 返回列表页面
+        document.getElementById('back-to-list').addEventListener('click', function() {
+            document.querySelectorAll('.content-page').forEach(p => {
+                p.classList.remove('active');
+            });
+            document.getElementById('certificates-page').classList.add('active');
+        });
+
+        // 取消申请
+        document.getElementById('cancel-apply').addEventListener('click', function() {
+            document.querySelectorAll('.content-page').forEach(p => {
+                p.classList.remove('active');
+            });
+            document.getElementById('certificates-page').classList.add('active');
+        });
+
+        // 登录表单提交
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('login-page').classList.remove('active');
+            document.getElementById('main-app').classList.add('active');
+        });
+
+        // 退出登录
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            document.getElementById('main-app').classList.remove('active');
+            document.getElementById('login-page').classList.add('active');
+            document.getElementById('user-menu').classList.add('hidden');
+        });
+
+        // 用户菜单切换
+        document.getElementById('user-menu-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('user-menu').classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', function() {
+            document.getElementById('user-menu').classList.add('hidden');
+        });
+
+        // 移动端菜单切换
+        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+
+        // 主题切换
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        // 导出模态框
+        document.querySelectorAll('.btn-primary').forEach(btn => {
+            if (btn.textContent === '导出') {
+                btn.addEventListener('click', function() {
+                    document.getElementById('export-modal').classList.remove('hidden');
+                });
+            }
+        });
+
+        document.getElementById('close-modal').addEventListener('click', function() {
+            document.getElementById('export-modal').classList.add('hidden');
+        });
+
+        document.getElementById('cancel-export').addEventListener('click', function() {
+            document.getElementById('export-modal').classList.add('hidden');
+        });
+
+        document.getElementById('export-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+
+        // 添加用户模态框
+        document.querySelectorAll('.btn-primary').forEach(btn => {
+            if (btn.textContent === '添加用户') {
+                btn.addEventListener('click', function() {
+                    document.getElementById('add-user-modal').classList.remove('hidden');
+                });
+            }
+        });
+
+        document.getElementById('close-user-modal').addEventListener('click', function() {
+            document.getElementById('add-user-modal').classList.add('hidden');
+        });
+
+        document.getElementById('cancel-add-user').addEventListener('click', function() {
+            document.getElementById('add-user-modal').classList.add('hidden');
+        });
+
+        document.getElementById('add-user-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

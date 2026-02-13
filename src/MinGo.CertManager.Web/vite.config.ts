@@ -6,7 +6,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: {
-    outDir: './BlazorApp/wwwroot',
+    outDir: './wwwroot',
     emptyOutDir: false,
     manifest: true,
     rollupOptions: {
