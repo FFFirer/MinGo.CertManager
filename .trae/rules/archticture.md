@@ -6,7 +6,11 @@ alwaysApply: true
 
 - 使用ASP.NET Core Blazor，渲染模式为Auto
 - 样式使用TailwindCSS v4
+  - tailwind.config.js定义了要监听的文件范围，需要应用在index.css中
+  - theme配置放在index.css中
 - 移除Bootstrap
+- 使用Vite.AspNetCore提供开发时提供集成vite的功能
+  - 无需手动执行tailwind生成，开发时自动监听文件变化，自动刷新
   
 # 文件结构
 
