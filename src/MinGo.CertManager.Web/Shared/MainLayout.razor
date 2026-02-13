@@ -1,11 +1,14 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
 
 <PageTitle>MinGo.CertManager.Web</PageTitle>
 
 <div class="min-h-screen bg-background text-foreground">
-    <nav class="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
+    @if (!IsLoginPage)
+    {
+        <nav class="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-8">
@@ -105,9 +108,10 @@
             </div>
         </div>
     </nav>
+    }
 
-    <main class="pt-16">
-        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="@(IsLoginPage ? "" : "pt-16")">
+        <div class="@(IsLoginPage ? "" : "container mx-auto px-4 sm:px-6 lg:px-8 py-8")">
             @Body
         </div>
     </main>
@@ -119,11 +123,24 @@
     private bool isUserMenuOpen = false;
     private bool _isInitialized = false;
 
+    private bool IsLoginPage => NavigationManager.Uri.Contains("/login");
+
     private string? MobileMenuCssClass => isMobileMenuOpen ? "block" : "hidden";
 
     protected override Task OnInitializedAsync()
     {
+        NavigationManager.LocationChanged += OnLocationChanged;
         return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        StateHasChanged();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
