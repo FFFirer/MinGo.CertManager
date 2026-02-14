@@ -1,9 +1,11 @@
 @page "/"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
 @inject NavigationManager NavigationManager
 
 @code {
     protected override void OnInitialized()
     {
-        NavigationManager.NavigateTo("/login");
+        NavigationManager.NavigateTo("/certificates");
     }
 }

@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Configuration;
 using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Repositories;
@@ -26,6 +28,18 @@ builder.Services.AddHttpClient();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"),
         b => b.MigrationsAssembly("MinGo.CertManager.Infrastructure")));
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 4;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
 
 builder.Services.AddScoped<ICertificateRepository, CertificateRepository>();
 builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
@@ -57,7 +71,7 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 var app = builder.Build();
 
-app.MigrateDatabase();
+await app.MigrateDatabaseAsync();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -75,11 +89,14 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
 Log.Information("Application started successfully");
 
-app.Run();
+await app.RunAsync();
 

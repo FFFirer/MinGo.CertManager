@@ -1,4 +1,6 @@
 @page "/users"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
 @using MinGo.CertManager.Core.Entities
 
 <PageTitle>用户管理</PageTitle>
