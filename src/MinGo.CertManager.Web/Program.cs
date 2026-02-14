@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Configuration;
-using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Repositories;
 using MinGo.CertManager.Infrastructure.Services;
 using MinGo.CertManager.Web.Extensions;
@@ -92,7 +91,10 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseAntiforgery();
+
 app.MapControllers();
+app.MapRazorPages();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 

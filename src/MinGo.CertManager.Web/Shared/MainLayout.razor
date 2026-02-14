@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @implements IDisposable
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
@@ -190,6 +190,6 @@
 
     private void Logout()
     {
-        NavigationManager.NavigateTo("/login");
+        NavigationManager.NavigateTo("Logout", forceLoad: true);
     }
 }
