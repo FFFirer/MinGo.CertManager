@@ -1,5 +1,6 @@
 @page "/login"
 @model MinGo.CertManager.Web.Pages.LoginModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @{
     ViewData["Title"] = "MinGo.CertManager - 证书管理系统";
@@ -15,7 +16,10 @@
 
         <form id="login-form" method="post" class="space-y-6">
             @Html.AntiForgeryToken()
-            <div asp-validation-summary="All" class="p-3 bg-red-100 text-red-700 rounded-md"></div>
+            @if (ViewContext.ModelState.ErrorCount > 0)
+            {
+                <div asp-validation-summary="All" class="p-3 bg-red-100 text-red-700 rounded-md"></div>
+            }
 
             <div>
                 <label class="label">用户名</label>

@@ -30,12 +30,12 @@ public class LoginModel : PageModel
 
     public class InputModel
     {
-        [Required]
-        public string Username { get; set; } = "admin";
+        [Required(AllowEmptyStrings = false, ErrorMessage = "请输入用户名")]
+        public string Username { get; set; } = "";
 
-        [Required]
+        [Required(AllowEmptyStrings = false, ErrorMessage = "请输入密码")]
         [DataType(DataType.Password)]
-        public string Password { get; set; } = "admin";
+        public string Password { get; set; } = "";
 
         [Display(Name = "记住我")]
         public bool RememberMe { get; set; }
