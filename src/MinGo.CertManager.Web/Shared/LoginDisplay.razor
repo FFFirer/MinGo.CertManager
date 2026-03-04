@@ -4,10 +4,12 @@
 @inject NavigationManager NavigationManager
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <AuthorizeView>
     <Authorized>
-        <div class="relative" id="login-display-container">
+        <div class="relative" @ref="containerRef">
             <button id="login-display-button" class="flex items-center space-x-2 focus:outline-none">
                 <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white">
                     @(context.User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")
@@ -17,7 +19,7 @@
                 </span>
                 <span class="text-xs">▼</span>
             </button>
-            
+
             <div id="login-dropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden">
                 <a href="/api-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                     API Key管理
@@ -35,40 +37,9 @@
     </NotAuthorized>
 </AuthorizeView>
 
-<script>
-    // 登录下拉菜单控制
-    document.addEventListener('DOMContentLoaded', function() {
-        const container = document.getElementById('login-display-container');
-        const button = document.getElementById('login-display-button');
-        const dropdown = document.getElementById('login-dropdown');
-        
-        if (container && button && dropdown) {
-            // 切换下拉菜单显示/隐藏
-            button.addEventListener('click', function(e) {
-                e.stopPropagation();
-                dropdown.classList.toggle('hidden');
-            });
-            
-            // 点击其他地方关闭下拉菜单
-            document.addEventListener('click', function() {
-                dropdown.classList.add('hidden');
-            });
-            
-            // 阻止点击下拉菜单内部时关闭
-            dropdown.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
-            
-            // 失去焦点时关闭下拉菜单
-            container.addEventListener('blur', function() {
-                console.log("失去焦点")
-                dropdown.classList.add('hidden');
-            }, true);
-        }
-    });
-</script>
-
 @code {
+    private ElementReference containerRef;
+    private IJSObjectReference? module;
     private ApplicationUser? user;
 
     protected override async Task OnInitializedAsync()
@@ -79,6 +50,24 @@
         if (principal.Identity?.IsAuthenticated == true)
         {
             user = await UserManager.GetUserAsync(principal);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Shared/LoginDisplay.razor.js");
+            await module.InvokeVoidAsync("initLoginDisplay", containerRef, null, null);
+        }
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        if (module != null)
+        {
+            await module.InvokeVoidAsync("cleanupLoginDisplay");
+            await module.DisposeAsync();
         }
     }
 }

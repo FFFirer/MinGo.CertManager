@@ -1,0 +1,199 @@
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<nav class="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+            <div class="flex items-center space-x-8">
+                <a href="/" class="text-xl font-bold text-primary hover:text-primary-hover transition-colors">
+                    MinGo.CertManager
+                </a>
+                <div class="hidden md:flex items-center space-x-1">
+                    <NavLink class="nav-link" href="certificates" Match="NavLinkMatch.Prefix">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        证书列表
+                    </NavLink>
+                    <NavLink class="nav-link" href="users" Match="NavLinkMatch.Prefix">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        用户管理
+                    </NavLink>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <button class="p-2 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors" @onclick="ToggleDarkMode" aria-label="切换主题">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        @if (isDarkMode)
+                        {
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        }
+                        else
+                        {
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        }
+                    </svg>
+                </button>
+
+                <div class="relative" @ref="userMenuContainerRef">
+                    <button class="flex items-center space-x-2 p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors" @onclick="ToggleUserMenu">
+                        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+                            A
+                        </div>
+                        <span class="hidden sm:block text-sm font-medium">admin</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    @if (isUserMenuOpen)
+                    {
+                        <div class="absolute right-0 mt-2 w-48 card shadow-lg z-50" @onclick:stopPropagation>
+                            <div class="py-1">
+                                <div class="px-4 py-2 border-b border-border">
+                                    <p class="text-sm font-medium">admin</p>
+                                    <p class="text-xs text-muted-foreground">管理员</p>
+                                </div>
+                                <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
+                                    个人设置
+                                </button>
+                                <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors" @onclick="NavigateToApiKeys">
+                                    API Key管理
+                                </button>
+                                <button class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent transition-colors" @onclick="Logout">
+                                    退出登录
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <button class="md:hidden p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors" @onclick="ToggleMobileMenu" aria-label="菜单">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        @if (isMobileMenuOpen)
+                        {
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        }
+                        else
+                        {
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        }
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="@MobileMenuCssClass md:hidden border-t border-border bg-background">
+        <div class="px-2 pt-2 pb-3 space-y-1">
+            <NavLink class="nav-link" href="certificates" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                证书列表
+            </NavLink>
+            <NavLink class="nav-link" href="users" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                用户管理
+            </NavLink>
+        </div>
+    </div>
+</nav>
+
+@code {
+    private ElementReference userMenuContainerRef;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<HeaderNav>? dotNetRef;
+    private bool isDarkMode = false;
+    private bool isMobileMenuOpen = false;
+    private bool isUserMenuOpen = false;
+    private bool _isInitialized = false;
+
+    private string? MobileMenuCssClass => isMobileMenuOpen ? "block" : "hidden";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_isInitialized)
+        {
+            var savedTheme = await JS.InvokeAsync<string>("localStorage.getItem", "theme");
+            isDarkMode = savedTheme == "dark";
+            await ApplyTheme();
+            _isInitialized = true;
+
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Shared/HeaderNav.razor.js");
+            dotNetRef = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("registerClickOutside", userMenuContainerRef, dotNetRef, nameof(CloseUserMenu));
+        }
+    }
+
+    [JSInvokable]
+    public void CloseUserMenu()
+    {
+        if (isUserMenuOpen)
+        {
+            isUserMenuOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleDarkMode()
+    {
+        isDarkMode = !isDarkMode;
+        await JS.InvokeVoidAsync("localStorage.setItem", "theme", isDarkMode ? "dark" : "light");
+        await ApplyTheme();
+    }
+
+    private async Task ApplyTheme()
+    {
+        if (isDarkMode)
+        {
+            await JS.InvokeVoidAsync("eval", "document.documentElement.classList.add('dark')");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("eval", "document.documentElement.classList.remove('dark')");
+        }
+    }
+
+    private void ToggleMobileMenu()
+    {
+        isMobileMenuOpen = !isMobileMenuOpen;
+    }
+
+    private void CloseMobileMenu()
+    {
+        isMobileMenuOpen = false;
+    }
+
+    private void ToggleUserMenu()
+    {
+        isUserMenuOpen = !isUserMenuOpen;
+    }
+
+    private void Logout()
+    {
+        NavigationManager.NavigateTo("Logout", forceLoad: true);
+    }
+
+    private void NavigateToApiKeys()
+    {
+        NavigationManager.NavigateTo("api-keys");
+        isUserMenuOpen = false;
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        if (module != null)
+        {
+            await module.InvokeVoidAsync("unregisterClickOutside");
+            await module.DisposeAsync();
+        }
+        dotNetRef?.Dispose();
+    }
+}
