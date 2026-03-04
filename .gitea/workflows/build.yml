@@ -1,0 +1,29 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t mingocertmanager:latest .
+
+      - name: Test Docker image
+        run: docker run --rm mingocertmanager:latest dotnet test
+
+      - name: Push Docker image
+        run: |
+          echo "Pushing Docker image would happen here"
+          # docker push mingocertmanager:latest
+
