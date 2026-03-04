@@ -99,6 +99,38 @@ dotnet ef migrations add InitialCreate --project src/MinGo.CertManager.Infrastru
 dotnet ef database update --project src/MinGo.CertManager.Infrastructure --startup-project src/MinGo.CertManager.Web
 ```
 
+## 配置阿里云DNS
+
+### 使用User Secrets配置（推荐）
+
+在开发环境中，推荐使用.NET User Secrets来存储敏感信息：
+
+```bash
+cd src/MinGo.CertManager.Web
+dotnet user-secrets init
+dotnet user-secrets set "AliyunDns:AccessKeyId" "your-access-key-id"
+dotnet user-secrets set "AliyunDns:AccessKeySecret" "your-access-key-secret"
+dotnet user-secrets set "Acme:AccountEmail" "your-email@example.com"
+```
+
+### 使用环境变量配置
+
+在生产环境中，可以使用环境变量来配置：
+
+```bash
+# Windows PowerShell
+$env:AliyunDns__AccessKeyId="your-access-key-id"
+$env:AliyunDns__AccessKeySecret="your-access-key-secret"
+$env:Acme__AccountEmail="your-email@example.com"
+dotnet run
+
+# Linux/macOS
+export AliyunDns__AccessKeyId="your-access-key-id"
+export AliyunDns__AccessKeySecret="your-access-key-secret"
+export Acme__AccountEmail="your-email@example.com"
+dotnet run
+```
+
 ## 许可证
 
 MIT License

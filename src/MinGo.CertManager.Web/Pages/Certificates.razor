@@ -65,7 +65,7 @@
                                     {
                                         <span class="badge badge-info">泛域名</span>
                                     }
-                                    <span class="badge @GetStatusBadgeClass(cert.Status)">@GetStatusText(cert.Status)</span>
+                                    <span class="badge @GetStatusBadgeClass((CertificateStatus)cert.Status)">@GetStatusText((CertificateStatus)cert.Status)</span>
                                 </div>
                             </div>
                         </div>
@@ -80,7 +80,11 @@
                             </div>
                             <div>
                                 <span class="text-muted-foreground">ACME状态:</span>
-                                <span class="ml-2">@GetAcmeStatusText(cert.AcmeStatus)</span>
+                                <span class="ml-2">@GetAcmeStatusText((AcmeProcessStatus)cert.AcmeStatus)</span>
+                                @if (!string.IsNullOrEmpty(cert.AcmeStatusMessage))
+                                {
+                                    <div class="ml-2 text-xs text-muted-foreground">@cert.AcmeStatusMessage</div>
+                                }
                             </div>
                         </div>
                     </div>

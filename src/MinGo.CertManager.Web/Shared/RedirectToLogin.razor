@@ -3,6 +3,10 @@
 @code {
     protected override void OnInitialized()
     {
-        NavigationManager.NavigateTo($"login?returnUrl={Uri.EscapeDataString(NavigationManager.ToBaseRelativePath(NavigationManager.Uri))}", forceLoad: true);
+        // 获取相对路径（不包含主机名和协议）
+        var relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var returnUrl = string.IsNullOrEmpty(relativePath) ? "/" : "/" + relativePath;
+        
+        NavigationManager.NavigateTo($"login?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
     }
 }

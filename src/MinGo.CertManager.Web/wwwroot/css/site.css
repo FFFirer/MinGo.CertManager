@@ -93,7 +93,7 @@ body {
 }
 
 .select {
-  width: 100%;
+  /* width: 100%; */
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   border: 1px solid rgb(229, 229, 229);
