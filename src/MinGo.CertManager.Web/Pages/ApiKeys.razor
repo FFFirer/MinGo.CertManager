@@ -7,11 +7,10 @@
 @inject IApiKeyService ApiKeyService
 @inject IJSRuntime JSRuntime
 
-<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">API Key管理</h1>
-        <p class="text-muted-foreground">管理开放平台接口密钥</p>
-    </div>
+    <PageHeader 
+        Title="API Key管理"
+        Description="管理开放平台接口密钥">
+    </PageHeader>
 
     <!-- 添加新API Key -->
     <div class="card mb-6">
@@ -131,7 +130,6 @@
             </div>
         }
     </div>
-</div>
 
 @code {
     private List<ApiKeyInfo> apiKeyItems = new List<ApiKeyInfo>();

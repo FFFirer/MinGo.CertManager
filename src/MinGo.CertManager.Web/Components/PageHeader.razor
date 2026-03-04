@@ -1,0 +1,39 @@
+<PageTitle>@Title</PageTitle>
+@* 页面头部组件 *@
+<div class="mb-8">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold mb-2">@Title</h1>
+            @if (!string.IsNullOrEmpty(Description))
+            {
+                <p class="text-muted-foreground">@Description</p>
+            }
+        </div>
+        @if (Actions != null)
+        {
+            <div class="flex gap-3">
+                @Actions
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// 页面标题
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; }
+
+    /// <summary>
+    /// 页面描述
+    /// </summary>
+    [Parameter]
+    public string Description { get; set; }
+
+    /// <summary>
+    /// 操作按钮内容
+    /// </summary>
+    [Parameter]
+    public RenderFragment Actions { get; set; }
+}

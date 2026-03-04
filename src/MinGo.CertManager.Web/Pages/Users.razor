@@ -3,22 +3,18 @@
 @using Microsoft.AspNetCore.Authorization
 @using MinGo.CertManager.Core.Entities
 
-<PageTitle>用户管理</PageTitle>
-
-<div class="mb-8">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-            <h1 class="text-3xl font-bold mb-2">用户管理</h1>
-            <p class="text-muted-foreground">管理系统用户</p>
-        </div>
+<PageHeader 
+    Title="用户管理"
+    Description="管理系统用户">
+    <Actions>
         <button class="btn btn-primary" @onclick="ShowAddUserDialog">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             添加用户
         </button>
-    </div>
-</div>
+    </Actions>
+</PageHeader>
 
 <div class="card">
     <div class="overflow-x-auto">
