@@ -1,9 +1,12 @@
 @page "/users"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @using MinGo.CertManager.Core.Entities
+@using MinGo.CertManager.Infrastructure.Data
+@using System.Linq
 
-<PageHeader 
+<PageHeader
     Title="用户管理"
     Description="管理系统用户">
     <Actions>
@@ -31,11 +34,11 @@
                 @foreach (var user in users)
                 {
                     <tr>
-                        <td class="font-medium">@user.Username</td>
-                        <td><span class="badge badge-info">@GetRoleText(user.Role)</span></td>
+                        <td class="font-medium">@user.UserName</td>
+                        <td><span class="badge badge-info">@GetRoleText(user)</span></td>
                         <td>@user.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                         <td>
-                            @if (user.Role != UserRole.Admin)
+                            @if (user.UserName != "admin")
                             {
                                 <button class="btn btn-secondary" @onclick="@(() => DeleteUser(user.Id))">删除</button>
                             }
@@ -50,43 +53,42 @@
 <AddUserModal IsVisible="@showAddUserModal" OnClose="HideAddUserDialog" OnAdd="HandleAddUser" />
 
 @code {
-    private List<User> users = new();
+    [Inject]
+    private UserManager<ApplicationUser> UserManager { get; set; }
+
+    [Inject]
+    private RoleManager<IdentityRole> RoleManager { get; set; }
+
+    private List<ApplicationUser> users = new();
+    private Dictionary<string, string> userRoles = new();
     private bool showAddUserModal = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadUsers();
+        await LoadUsers();
     }
 
-    private void LoadUsers()
+    private async Task LoadUsers()
     {
-        users = new List<User>
+        users = UserManager.Users.ToList();
+        userRoles = new Dictionary<string, string>();
+
+        foreach (var user in users)
         {
-            new User
+            var roles = await UserManager.GetRolesAsync(user);
+            var roleName = roles.FirstOrDefault();
+            userRoles[user.Id] = roleName switch
             {
-                Id = Guid.NewGuid(),
-                Username = "admin",
-                Role = UserRole.Admin,
-                CreatedAt = DateTime.UtcNow.AddDays(-30)
-            },
-            new User
-            {
-                Id = Guid.NewGuid(),
-                Username = "user1",
-                Role = UserRole.User,
-                CreatedAt = DateTime.UtcNow.AddDays(-15)
-            }
-        };
+                "Admin" => "管理员",
+                "User" => "普通用户",
+                _ => "未知"
+            };
+        }
     }
 
-    private string GetRoleText(UserRole role)
+    private string GetRoleText(ApplicationUser user)
     {
-        return role switch
-        {
-            UserRole.Admin => "管理员",
-            UserRole.User => "普通用户",
-            _ => "未知"
-        };
+        return userRoles.TryGetValue(user.Id, out var roleText) ? roleText : "未知";
     }
 
     private void ShowAddUserDialog()
@@ -99,24 +101,34 @@
         showAddUserModal = false;
     }
 
-    private Task HandleAddUser(User user)
+    private async Task HandleAddUser(User user)
     {
-        user.Id = Guid.NewGuid();
-        user.CreatedAt = DateTime.UtcNow;
-        if (string.IsNullOrEmpty(user.Role.ToString()))
+        var newUser = new ApplicationUser
         {
-            user.Role = UserRole.User;
+            UserName = user.Username,
+            Email = $"{user.Username}@example.com",
+            EmailConfirmed = true,
+            Status = UserStatus.Active,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var result = await UserManager.CreateAsync(newUser, user.PasswordHash);
+        if (result.Succeeded)
+        {
+            var roleName = user.Role == UserRole.Admin ? "Admin" : "User";
+            await UserManager.AddToRoleAsync(newUser, roleName);
+            await LoadUsers();
         }
-        users.Add(user);
-        return Task.CompletedTask;
     }
 
-    private void DeleteUser(Guid userId)
+    private async Task DeleteUser(string userId)
     {
-        var user = users.FirstOrDefault(u => u.Id == userId);
-        if (user != null)
+        var user = await UserManager.FindByIdAsync(userId);
+        if (user != null && user.UserName != "admin")
         {
-            users.Remove(user);
+            await UserManager.DeleteAsync(user);
+            await LoadUsers();
         }
     }
 }

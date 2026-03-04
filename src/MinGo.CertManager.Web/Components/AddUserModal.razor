@@ -19,6 +19,14 @@
                 <InputText type="password" class="input" @bind-Value="userModel.ConfirmPassword" placeholder="请再次输入密码" />
             </div>
 
+            <div>
+                <label class="label">角色</label>
+                <select class="input" @bind="userModel.Role">
+                    <option value="@UserRole.Admin">管理员</option>
+                    <option value="@UserRole.User">普通用户</option>
+                </select>
+            </div>
+
             <div class="flex justify-end gap-3 pt-4">
                 <button type="button" class="btn btn-secondary" @onclick="HandleClose">取消</button>
                 <button type="submit" class="btn btn-primary">添加</button>
@@ -42,6 +50,7 @@
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string ConfirmPassword { get; set; } = string.Empty;
+        public UserRole Role { get; set; } = UserRole.User;
     }
 
     private UserModel userModel = new();
@@ -62,7 +71,8 @@
         var newUser = new User
         {
             Username = userModel.Username,
-            PasswordHash = userModel.Password
+            PasswordHash = userModel.Password,
+            Role = userModel.Role
         };
 
         await OnAdd.InvokeAsync(newUser);
