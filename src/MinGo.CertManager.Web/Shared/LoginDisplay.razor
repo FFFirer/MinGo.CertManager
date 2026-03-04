@@ -10,26 +10,41 @@
 <AuthorizeView>
     <Authorized>
         <div class="relative" @ref="containerRef">
-            <button id="login-display-button" class="flex items-center space-x-2 focus:outline-none">
-                <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white">
+            <button class="flex items-center space-x-2 p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors" @onclick="ToggleUserMenu">
+                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
                     @(context.User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")
                 </div>
-                <span class="text-sm">
+                <span class="hidden sm:block text-sm font-medium">
                     @context.User.Identity?.Name
                 </span>
-                <span class="text-xs">▼</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
             </button>
 
-            <div id="login-dropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden">
-                <a href="/api-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                    API Key管理
-                </a>
-                <form method="post" action="Account/Logout" class="block">
-                    <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        退出登录
-                    </button>
-                </form>
-            </div>
+            @if (isUserMenuOpen)
+            {
+                <div class="absolute right-0 mt-2 w-48 card shadow-lg z-50" @onclick:stopPropagation>
+                    <div class="py-1">
+                        <div class="px-4 py-2 border-b border-border">
+                            <p class="text-sm font-medium">@context.User.Identity?.Name</p>
+                            <p class="text-xs text-muted-foreground">@UserRole</p>
+                        </div>
+                        <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors" @onclick="NavigateToProfile">
+                            个人设置
+                        </button>
+                        <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors" @onclick="NavigateToUsers">
+                            用户管理
+                        </button>
+                        <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors" @onclick="NavigateToApiKeys">
+                            API Key管理
+                        </button>
+                        <button class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent transition-colors" @onclick="Logout">
+                            退出登录
+                        </button>
+                    </div>
+                </div>
+            }
         </div>
     </Authorized>
     <NotAuthorized>
@@ -40,7 +55,22 @@
 @code {
     private ElementReference containerRef;
     private IJSObjectReference? module;
+    private DotNetObjectReference<LoginDisplay>? dotNetRef;
     private ApplicationUser? user;
+    private bool isUserMenuOpen = false;
+    private string UserRole => GetUserRole();
+
+    private string GetUserRole()
+    {
+        var authState = Task.Run(async () => await AuthenticationStateProvider.GetAuthenticationStateAsync()).Result;
+        var principal = authState.User;
+        
+        if (principal.IsInRole("Admin"))
+        {
+            return "管理员";
+        }
+        return "用户";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -58,8 +88,47 @@
         if (firstRender)
         {
             module = await JS.InvokeAsync<IJSObjectReference>("import", "./Shared/LoginDisplay.razor.js");
-            await module.InvokeVoidAsync("initLoginDisplay", containerRef, null, null);
+            dotNetRef = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("initLoginDisplay", containerRef, dotNetRef, nameof(CloseUserMenu));
         }
+    }
+
+    [JSInvokable]
+    public void CloseUserMenu()
+    {
+        if (isUserMenuOpen)
+        {
+            isUserMenuOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleUserMenu()
+    {
+        isUserMenuOpen = !isUserMenuOpen;
+    }
+
+    private void Logout()
+    {
+        NavigationManager.NavigateTo("Logout", forceLoad: true);
+    }
+
+    private void NavigateToApiKeys()
+    {
+        NavigationManager.NavigateTo("api-keys");
+        isUserMenuOpen = false;
+    }
+
+    private void NavigateToUsers()
+    {
+        NavigationManager.NavigateTo("users");
+        isUserMenuOpen = false;
+    }
+    
+    private void NavigateToProfile()
+    {
+        NavigationManager.NavigateTo("profile");
+        isUserMenuOpen = false;
     }
 
     async ValueTask IAsyncDisposable.DisposeAsync()
@@ -69,5 +138,6 @@
             await module.InvokeVoidAsync("cleanupLoginDisplay");
             await module.DisposeAsync();
         }
+        dotNetRef?.Dispose();
     }
 }

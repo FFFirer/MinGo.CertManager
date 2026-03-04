@@ -1,6 +1,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
+@using Microsoft.AspNetCore.Authorization
 
 <nav class="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -16,12 +17,20 @@
                         </svg>
                         证书列表
                     </NavLink>
-                    <NavLink class="nav-link" href="users" Match="NavLinkMatch.Prefix">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                        用户管理
-                    </NavLink>
+                    <AuthorizeView Roles="Admin">
+                        <NavLink class="nav-link" href="users" Match="NavLinkMatch.Prefix">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            用户管理
+                        </NavLink>
+                        <NavLink class="nav-link" href="api-keys" Match="NavLinkMatch.Prefix">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            API Key管理
+                        </NavLink>
+                    </AuthorizeView>
                 </div>
             </div>
 
@@ -39,38 +48,7 @@
                     </svg>
                 </button>
 
-                <div class="relative" @ref="userMenuContainerRef">
-                    <button class="flex items-center space-x-2 p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors" @onclick="ToggleUserMenu">
-                        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
-                            A
-                        </div>
-                        <span class="hidden sm:block text-sm font-medium">admin</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-
-                    @if (isUserMenuOpen)
-                    {
-                        <div class="absolute right-0 mt-2 w-48 card shadow-lg z-50" @onclick:stopPropagation>
-                            <div class="py-1">
-                                <div class="px-4 py-2 border-b border-border">
-                                    <p class="text-sm font-medium">admin</p>
-                                    <p class="text-xs text-muted-foreground">管理员</p>
-                                </div>
-                                <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
-                                    个人设置
-                                </button>
-                                <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors" @onclick="NavigateToApiKeys">
-                                    API Key管理
-                                </button>
-                                <button class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent transition-colors" @onclick="Logout">
-                                    退出登录
-                                </button>
-                            </div>
-                        </div>
-                    }
-                </div>
+                <LoginDisplay />
 
                 <button class="md:hidden p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors" @onclick="ToggleMobileMenu" aria-label="菜单">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,23 +74,28 @@
                 </svg>
                 证书列表
             </NavLink>
-            <NavLink class="nav-link" href="users" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                用户管理
-            </NavLink>
+            <AuthorizeView Roles="Admin">
+                <NavLink class="nav-link" href="users" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    用户管理
+                </NavLink>
+                <NavLink class="nav-link" href="api-keys" Match="NavLinkMatch.Prefix" @onclick="CloseMobileMenu">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    API Key管理
+                </NavLink>
+            </AuthorizeView>
         </div>
     </div>
 </nav>
 
 @code {
-    private ElementReference userMenuContainerRef;
     private IJSObjectReference? module;
-    private DotNetObjectReference<HeaderNav>? dotNetRef;
     private bool isDarkMode = false;
     private bool isMobileMenuOpen = false;
-    private bool isUserMenuOpen = false;
     private bool _isInitialized = false;
 
     private string? MobileMenuCssClass => isMobileMenuOpen ? "block" : "hidden";
@@ -125,20 +108,6 @@
             isDarkMode = savedTheme == "dark";
             await ApplyTheme();
             _isInitialized = true;
-
-            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Shared/HeaderNav.razor.js");
-            dotNetRef = DotNetObjectReference.Create(this);
-            await module.InvokeVoidAsync("registerClickOutside", userMenuContainerRef, dotNetRef, nameof(CloseUserMenu));
-        }
-    }
-
-    [JSInvokable]
-    public void CloseUserMenu()
-    {
-        if (isUserMenuOpen)
-        {
-            isUserMenuOpen = false;
-            StateHasChanged();
         }
     }
 
@@ -171,29 +140,11 @@
         isMobileMenuOpen = false;
     }
 
-    private void ToggleUserMenu()
-    {
-        isUserMenuOpen = !isUserMenuOpen;
-    }
-
-    private void Logout()
-    {
-        NavigationManager.NavigateTo("Logout", forceLoad: true);
-    }
-
-    private void NavigateToApiKeys()
-    {
-        NavigationManager.NavigateTo("api-keys");
-        isUserMenuOpen = false;
-    }
-
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
         if (module != null)
         {
-            await module.InvokeVoidAsync("unregisterClickOutside");
             await module.DisposeAsync();
         }
-        dotNetRef?.Dispose();
     }
 }

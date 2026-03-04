@@ -1,4 +1,6 @@
 @page "/api-keys"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @using MinGo.CertManager.Infrastructure.Services

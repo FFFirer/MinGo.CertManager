@@ -3,22 +3,14 @@ let clickOutsideHandler = null;
 export function initLoginDisplay(containerRef, dotNetRef, callbackMethod) {
     if (!containerRef) return;
 
-    const button = containerRef.querySelector('#login-display-button');
-    const dropdown = containerRef.querySelector('#login-dropdown');
-
-    if (button && dropdown) {
-        button.addEventListener('click', function(e) {
-            e.stopPropagation();
-            dropdown.classList.toggle('hidden');
-        });
-
-        dropdown.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-
+    // 查找用户菜单容器
+    const userMenuContainer = containerRef;
+    
+    if (userMenuContainer && dotNetRef && callbackMethod) {
+        // 点击外部关闭菜单的处理
         clickOutsideHandler = function(e) {
-            if (!containerRef.contains(e.target)) {
-                dropdown.classList.add('hidden');
+            if (!userMenuContainer.contains(e.target)) {
+                dotNetRef.invokeMethodAsync(callbackMethod);
             }
         };
         document.addEventListener('click', clickOutsideHandler);
