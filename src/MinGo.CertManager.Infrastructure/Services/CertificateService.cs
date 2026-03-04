@@ -133,6 +133,12 @@ public class CertificateService : ICertificateService
             throw new ArgumentException("Certificate not found", nameof(certificateId));
         }
 
+        if (certificate.Status == CertificateStatus.Pending || certificate.Status == CertificateStatus.Failed)
+        {
+            _logger.LogWarning("证书状态不允许导出: CertificateId={CertificateId}, Status={Status}", certificateId, certificate.Status);
+            throw new InvalidOperationException("Certificate cannot be exported in pending or failed status");
+        }
+
         try
         {
             var result = format switch

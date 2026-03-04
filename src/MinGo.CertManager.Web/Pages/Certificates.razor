@@ -89,7 +89,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 ml-4">
-                        <button class="btn btn-primary" @onclick="@(() => ShowExportDialog(cert))">导出</button>
+                        @if (cert.Status == CertificateStatus.Active || cert.Status == CertificateStatus.Expiring || cert.Status == CertificateStatus.Expired)
+                        {
+                            <button class="btn btn-primary" @onclick="@(() => ShowExportDialog(cert))">导出</button>
+                        }
                         @if (cert.Status == CertificateStatus.Active)
                         {
                             <button class="btn btn-secondary" @onclick="@(() => RenewCertificate(cert.Id))">续签</button>
