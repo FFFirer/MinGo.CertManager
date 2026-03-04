@@ -67,6 +67,9 @@
                                     <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
                                         个人设置
                                     </button>
+                                    <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors" @onclick="NavigateToApiKeys">
+                                        API Key管理
+                                    </button>
                                     <button class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent transition-colors" @onclick="Logout">
                                         退出登录
                                     </button>
@@ -191,5 +194,11 @@
     private void Logout()
     {
         NavigationManager.NavigateTo("Logout", forceLoad: true);
+    }
+
+    private void NavigateToApiKeys()
+    {
+        NavigationManager.NavigateTo("api-keys");
+        isUserMenuOpen = false;
     }
 }

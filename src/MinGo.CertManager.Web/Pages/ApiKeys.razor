@@ -1,0 +1,277 @@
+@page "/api-keys"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using MinGo.CertManager.Infrastructure.Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IApiKeyService ApiKeyService
+@inject IJSRuntime JSRuntime
+
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2">API Key管理</h1>
+        <p class="text-muted-foreground">管理开放平台接口密钥</p>
+    </div>
+
+    <!-- 添加新API Key -->
+    <div class="card mb-6">
+        <div class="p-6">
+            <h2 class="text-lg font-semibold mb-4">添加新API Key</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="label">描述</label>
+                    <input type="text" @bind="newApiKeyDescription" class="input" placeholder="输入API Key描述" />
+                </div>
+
+                <div>
+                    <label class="label">过期时间</label>
+                    <input type="datetime-local" @bind="newApiKeyExpiresAt" class="input" />
+                </div>
+                <div>
+                    <label class="label">每分钟限流</label>
+                    <input type="number" @bind="newApiKeyRateLimit" class="input" min="1" />
+                </div>
+                <div class="md:col-span-2">
+                    <label class="label">IP白名单（JSON格式：["1.2.3.4","5.6.7.0/24"]）</label>
+                    <textarea @bind="newApiKeyIpWhitelist" class="input" rows="3" placeholder="输入IP白名单"></textarea>
+                </div>
+                <div class="md:col-span-2 flex justify-end">
+                    <button @onclick="AddApiKey" class="btn btn-primary">
+                        生成API Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key列表 -->
+    <div class="card">
+        <div class="p-6 border-b border-border">
+            <h2 class="text-lg font-semibold">API Key列表</h2>
+        </div>
+        
+        @if (apiKeyItems.Count == 0)
+        {
+            <div class="p-6">
+                <p class="text-muted-foreground">暂无API Key，请添加新的API Key</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-border">
+                @foreach (var item in apiKeyItems)
+                {
+                    <div class="p-6 certificate-row">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <h3 class="font-semibold text-lg">@item.Description</h3>
+                                <div class="flex items-center gap-2 ml-4">
+                                    @if (item.Status == 1)
+                                    {
+                                        <button @onclick="() => DisableApiKey(item.Id)" class="btn btn-warning">禁用</button>
+                                    }
+                                    else
+                                    {
+                                        <button @onclick="() => EnableApiKey(item.Id)" class="btn btn-success">启用</button>
+                                    }
+                                    <button @onclick="() => DeleteApiKey(item.Id)" class="btn btn-destructive">删除</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <div class="flex items-center">
+                                        <label class="text-sm text-muted-foreground mr-2">API Key:</label>
+                                        <input type="text" value="@item.ApiKey" class="input flex-1" readonly />
+                                        <button @onclick="() => CopyToClipboard(item.ApiKey)" class="btn btn-secondary ml-2">复制</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex items-center">
+                                        <label class="text-sm text-muted-foreground mr-2">API Secret:</label>
+                                        <input type="text" value="@item.ApiSecret" class="input flex-1" readonly />
+                                        <button @onclick="() => CopyToClipboard(item.ApiSecret)" class="btn btn-secondary ml-2">复制</button>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-3">
+                                <div>
+                                    <span class="text-muted-foreground">创建时间:</span>
+                                    <span class="ml-2">@item.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted-foreground">过期时间:</span>
+                                    <span class="ml-2">@(item.ExpiresAt.HasValue ? item.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : "永不过期")</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted-foreground">状态:</span>
+                                    <span class="ml-2">@(item.Status == 1 ? "正常" : "禁用")</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted-foreground">每分钟限流:</span>
+                                    <span class="ml-2">@item.RateLimitQpm</span>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(item.IpWhitelist))
+                            {
+                                <div class="mb-3">
+                                    <span class="text-sm text-muted-foreground">IP白名单:</span>
+                                    <pre class="ml-2 text-sm bg-gray-100 p-2 rounded">@item.IpWhitelist</pre>
+                                </div>
+                            }
+                            @if (item.LastUsedAt.HasValue)
+                            {
+                                <div class="text-sm text-muted-foreground">
+                                    最后使用时间: @item.LastUsedAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<ApiKeyInfo> apiKeyItems = new List<ApiKeyInfo>();
+    private string newApiKeyDescription = string.Empty;
+    private DateTime? newApiKeyExpiresAt;
+    private int newApiKeyRateLimit = 1000;
+    private string newApiKeyIpWhitelist = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadApiKeys();
+    }
+
+    /// <summary>
+    /// 加载API Key列表
+    /// </summary>
+    private async Task LoadApiKeys()
+    {
+        apiKeyItems = await ApiKeyService.GetAllApiKeysAsync();
+    }
+
+    /// <summary>
+    /// 复制文本到剪贴板
+    /// </summary>
+    private async Task CopyToClipboard(string text)
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+    }
+
+    /// <summary>
+    /// 添加新的API Key
+    /// </summary>
+    private async Task AddApiKey()
+    {
+        if (string.IsNullOrWhiteSpace(newApiKeyDescription))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "请输入API Key描述");
+            return;
+        }
+
+        try
+        {
+            var (apiKey, apiSecret, id) = await ApiKeyService.CreateApiKeyAsync(
+                1, // 默认应用ID
+                newApiKeyDescription,
+                newApiKeyExpiresAt,
+                string.IsNullOrWhiteSpace(newApiKeyIpWhitelist) ? null : newApiKeyIpWhitelist,
+                newApiKeyRateLimit
+            );
+
+            // 显示API Key和Secret
+            await JSRuntime.InvokeVoidAsync("alert", $"API Key已生成\n\nAPI Key: {apiKey}\nAPI Secret: {apiSecret}\n\n请妥善保存，Secret仅显示一次");
+
+            // 重置表单
+            newApiKeyDescription = string.Empty;
+            newApiKeyExpiresAt = null;
+            newApiKeyRateLimit = 1000;
+            newApiKeyIpWhitelist = string.Empty;
+
+            // 重新加载列表
+            await LoadApiKeys();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"生成API Key失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 删除API Key
+    /// </summary>
+    private async Task DeleteApiKey(long id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "确定要删除这个API Key吗？"))
+        {
+            try
+            {
+                var success = await ApiKeyService.DeleteApiKeyAsync(id);
+                if (success)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "API Key已删除");
+                    await LoadApiKeys();
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "删除API Key失败");
+                }
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"删除API Key失败: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 禁用API Key
+    /// </summary>
+    private async Task DisableApiKey(long id)
+    {
+        try
+        {
+            var success = await ApiKeyService.DisableApiKeyAsync(id);
+            if (success)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "API Key已禁用");
+                await LoadApiKeys();
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "禁用API Key失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"禁用API Key失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 启用API Key
+    /// </summary>
+    private async Task EnableApiKey(long id)
+    {
+        try
+        {
+            var success = await ApiKeyService.EnableApiKeyAsync(id);
+            if (success)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "API Key已启用");
+                await LoadApiKeys();
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "启用API Key失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"启用API Key失败: {ex.Message}");
+        }
+    }
+}

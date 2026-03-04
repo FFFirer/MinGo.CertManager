@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Configuration;
+using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Repositories;
 using MinGo.CertManager.Infrastructure.Services;
 using MinGo.CertManager.Web.Extensions;
+using MinGo.CertManager.Web.Middleware;
 using Quartz;
 using Serilog;
 using Vite.AspNetCore;
@@ -42,11 +43,13 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 builder.Services.AddScoped<ICertificateRepository, CertificateRepository>();
 builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
+builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IDnsValidationService, AliyunDnsValidationService>();
 builder.Services.AddScoped<IAcmeService, AcmeService>();
 builder.Services.AddScoped<IAcmeAccountCache, AcmeAccountCache>();
 builder.Services.AddScoped<IAliyunDnsService, AliyunDnsService>();
+builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 
 builder.Services.Configure<AcmeSettings>(
     builder.Configuration.GetSection(AcmeSettings.SectionName));
@@ -56,6 +59,8 @@ builder.Services.Configure<AliyunDnsSettings>(
     builder.Configuration.GetSection(AliyunDnsSettings.SectionName));
 builder.Services.Configure<QuartzSettings>(
     builder.Configuration.GetSection(QuartzSettings.SectionName));
+builder.Services.Configure<ApiKeySettings>(
+    builder.Configuration.GetSection(ApiKeySettings.SectionName));
 
 builder.Services.AddQuartz(q =>
 {
@@ -92,6 +97,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseAntiforgery();
+
+// 添加API密钥认证中间件
+app.UseApiKeyAuthentication();
 
 app.MapControllers();
 app.MapRazorPages();

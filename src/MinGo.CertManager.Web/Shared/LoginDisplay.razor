@@ -7,15 +7,30 @@
 
 <AuthorizeView>
     <Authorized>
-        <div class="flex items-center space-x-4">
-            <span class="text-sm">
-                欢迎, @context.User.Identity?.Name
-            </span>
-            <form method="post" action="Account/Logout" class="flex items-center">
-                <button type="submit" class="text-sm text-white hover:text-gray-300">
-                    退出登录
-                </button>
-            </form>
+        <div class="relative">
+            <button @onclick="ToggleDropdown" class="flex items-center space-x-2 focus:outline-none">
+                <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white">
+                    @(context.User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")
+                </div>
+                <span class="text-sm">
+                    @context.User.Identity?.Name
+                </span>
+                <span class="text-xs">▼</span>
+            </button>
+            
+            @if (showDropdown)
+            {
+                <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                    <a href="/api-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        API Key管理
+                    </a>
+                    <form method="post" action="Account/Logout" class="block">
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            退出登录
+                        </button>
+                    </form>
+                </div>
+            }
         </div>
     </Authorized>
     <NotAuthorized>
@@ -25,6 +40,7 @@
 
 @code {
     private ApplicationUser? user;
+    private bool showDropdown = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -35,5 +51,10 @@
         {
             user = await UserManager.GetUserAsync(principal);
         }
+    }
+
+    private void ToggleDropdown()
+    {
+        showDropdown = !showDropdown;
     }
 }

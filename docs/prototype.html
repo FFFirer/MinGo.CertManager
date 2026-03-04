@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,40 +12,40 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: 'rgb(0, 120, 212)',
-                        'primary-hover': 'rgb(0, 100, 180)',
+                        primary: 'rgb(236, 72, 153)', // 粉色主题
+                        'primary-hover': 'rgb(219, 39, 119)',
                         background: 'rgb(255, 255, 255)',
                         foreground: 'rgb(23, 23, 23)',
                         card: 'rgb(255, 255, 255)',
                         'card-foreground': 'rgb(23, 23, 23)',
                         muted: 'rgb(243, 244, 246)',
                         'muted-foreground': 'rgb(115, 115, 115)',
-                        accent: 'rgb(243, 249, 255)',
+                        accent: 'rgb(255, 241, 245)', // 浅粉色
                         'accent-foreground': 'rgb(23, 23, 23)',
                         border: 'rgb(229, 229, 229)',
                         input: 'rgb(229, 229, 229)',
                         destructive: 'rgb(220, 38, 38)',
                     },
                     dark: {
-                        background: 'rgb(32, 32, 32)',
+                        background: 'rgb(17, 24, 39)', // 深色背景
                         foreground: 'rgb(255, 255, 255)',
-                        card: 'rgb(44, 44, 44)',
+                        card: 'rgb(31, 41, 55)',
                         'card-foreground': 'rgb(255, 255, 255)',
-                        muted: 'rgb(60, 60, 60)',
-                        'muted-foreground': 'rgb(163, 163, 163)',
-                        accent: 'rgb(51, 51, 51)',
+                        muted: 'rgb(55, 65, 81)',
+                        'muted-foreground': 'rgb(156, 163, 175)',
+                        accent: 'rgb(59, 130, 246)', // 蓝色强调
                         'accent-foreground': 'rgb(255, 255, 255)',
-                        border: 'rgb(60, 60, 60)',
-                        input: 'rgb(60, 60, 60)',
+                        border: 'rgb(55, 65, 81)',
+                        input: 'rgb(55, 65, 81)',
                     },
                     fontFamily: {
-                        sans: ['"Segoe UI"', '"Segoe UI Web (West European)"', '-apple-system', 'BlinkMacSystemFont', '"Roboto"', '"Helvetica Neue"', 'sans-serif'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
                     },
                     boxShadow: {
-                        'sm': '0 2px 4px rgba(0, 0, 0, 0.08)',
-                        'md': '0 4px 8px rgba(0, 0, 0, 0.12)',
-                        'lg': '0 8px 16px rgba(0, 0, 0, 0.16)',
-                        'xl': '0 12px 24px rgba(0, 0, 0, 0.20)',
+                        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                        'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                        'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
                     },
                     transitionDuration: {
                         '200': '200ms',
@@ -374,6 +375,7 @@
         }
     </style>
 </head>
+
 <body class="bg-background text-foreground min-h-screen">
     <!-- 登录页面 -->
     <div id="login-page" class="page-section active">
@@ -422,14 +424,18 @@
                         </a>
                         <div class="hidden md:flex items-center space-x-1">
                             <button class="nav-link active" data-page="certificates">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 证书列表
                             </button>
                             <button class="nav-link admin-only" data-page="users">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 用户管理
                             </button>
@@ -437,20 +443,28 @@
                     </div>
 
                     <div class="flex items-center space-x-4">
-                        <button id="theme-toggle" class="p-2 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors" aria-label="切换主题">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        <button id="theme-toggle"
+                            class="p-2 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors"
+                            aria-label="切换主题">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                             </svg>
                         </button>
 
                         <div class="relative">
-                            <button id="user-menu-btn" class="flex items-center space-x-2 p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
-                                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+                            <button id="user-menu-btn"
+                                class="flex items-center space-x-2 p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
+                                <div
+                                    class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
                                     A
                                 </div>
                                 <span class="hidden sm:block text-sm font-medium">admin</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
 
@@ -460,19 +474,29 @@
                                         <p class="text-sm font-medium">admin</p>
                                         <p class="text-xs text-muted-foreground">管理员</p>
                                     </div>
-                                    <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
+                                    <button
+                                        class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
                                         个人设置
                                     </button>
-                                    <button id="logout-btn" class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent transition-colors">
+                                    <button class="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors"
+                                        data-page="api-keys">
+                                        API Key管理
+                                    </button>
+                                    <button id="logout-btn"
+                                        class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent transition-colors">
                                         退出登录
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <button id="mobile-menu-btn" class="md:hidden p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors" aria-label="菜单">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        <button id="mobile-menu-btn"
+                            class="md:hidden p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                            aria-label="菜单">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16m-7 6h7" />
                             </svg>
                         </button>
                     </div>
@@ -483,14 +507,18 @@
             <div id="mobile-menu" class="hidden md:hidden border-t border-border bg-background">
                 <div class="px-2 pt-2 pb-3 space-y-1">
                     <button class="nav-link active w-full" data-page="certificates">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         证书列表
                     </button>
                     <button class="nav-link admin-only w-full" data-page="users">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
                         用户管理
                     </button>
@@ -511,8 +539,10 @@
                                 <p class="text-muted-foreground">查看和管理您的SSL证书</p>
                             </div>
                             <button id="goto-apply" class="btn btn-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
                                 </svg>
                                 申请证书
                             </button>
@@ -638,8 +668,10 @@
                 <div id="apply-page" class="content-page">
                     <div class="mb-8">
                         <button id="back-to-list" class="btn btn-secondary mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
                             返回列表
                         </button>
@@ -729,7 +761,8 @@
                                     <tr class="border-b border-border hover:bg-accent">
                                         <td class="py-3 px-4">
                                             <div class="flex items-center">
-                                                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium mr-3">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-medium mr-3">
                                                     A
                                                 </div>
                                                 <span class="font-medium">admin</span>
@@ -750,7 +783,8 @@
                                     <tr class="border-b border-border hover:bg-accent">
                                         <td class="py-3 px-4">
                                             <div class="flex items-center">
-                                                <div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-medium mr-3">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-medium mr-3">
                                                     U
                                                 </div>
                                                 <span class="font-medium">user1</span>
@@ -771,7 +805,8 @@
                                     <tr class="border-b border-border hover:bg-accent">
                                         <td class="py-3 px-4">
                                             <div class="flex items-center">
-                                                <div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-medium mr-3">
+                                                <div
+                                                    class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-medium mr-3">
                                                     T
                                                 </div>
                                                 <span class="font-medium">testuser</span>
@@ -795,6 +830,88 @@
                     </div>
                 </div>
 
+                <!-- API Key管理页面 -->
+                <div id="api-keys-page" class="content-page">
+                    <div class="mb-8">
+                        <h1 class="text-3xl font-bold mb-2">API Key管理</h1>
+                        <p class="text-muted-foreground">管理开放平台接口密钥</p>
+                    </div>
+
+                    <!-- 添加新API Key -->
+                    <div class="card mb-6">
+                        <div class="p-6">
+                            <h2 class="text-lg font-semibold mb-4">添加新API Key</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="label">名称</label>
+                                    <input type="text" id="new-api-key-name" class="input" placeholder="输入API Key名称">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="label">操作</label>
+                                    <div class="flex items-end">
+                                        <button id="add-api-key" class="btn btn-primary">
+                                            生成API Key
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Key列表 -->
+                    <div class="card">
+                        <div class="p-6 border-b border-border">
+                            <h2 class="text-lg font-semibold">API Key列表</h2>
+                        </div>
+
+                        <div id="api-key-list" class="divide-y divide-border">
+                            <!-- API Key项1 -->
+                            <div class="p-6 certificate-row items-start">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-3 mb-3">
+                                        <h3 class="font-semibold text-lg">默认API Key</h3>
+                                        <div class="flex items-center gap-2 ml-4">
+                                            <button class="btn btn-destructive" onclick="deleteApiKey(this)">删除</button>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                                        <div>
+                                            <div class="flex items-center">
+                                                <label class="text-sm text-muted-foreground mr-2">API Key:</label>
+                                                <input type="text" value="default-api-key" class="input flex-1"
+                                                    readonly>
+                                                <button class="btn btn-secondary ml-2"
+                                                    onclick="copyToClipboard('default-api-key')">复制</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center">
+                                                <label class="text-sm text-muted-foreground mr-2">API Secret:</label>
+                                                <input type="text" value="default-api-secret" class="input flex-1"
+                                                    readonly>
+                                                <button class="btn btn-secondary ml-2"
+                                                    onclick="copyToClipboard('default-api-secret')">复制</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span class="text-muted-foreground">创建时间:</span>
+                                            <span class="ml-2">2026-03-04 00:00:00</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground">过期时间:</span>
+                                            <span class="ml-2">永不过期</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                </div>
+
             </div>
         </main>
     </div>
@@ -806,8 +923,10 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold">导出证书</h3>
                     <button id="close-modal" class="text-muted-foreground hover:text-foreground">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -841,8 +960,10 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold">添加用户</h3>
                     <button id="close-user-modal" class="text-muted-foreground hover:text-foreground">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -875,7 +996,7 @@
     <script>
         // 页面切换
         document.querySelectorAll('[data-page]').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function () {
                 const page = this.getAttribute('data-page');
 
                 // 更新导航链接状态
@@ -898,7 +1019,7 @@
         });
 
         // 跳转到申请页面
-        document.getElementById('goto-apply').addEventListener('click', function() {
+        document.getElementById('goto-apply').addEventListener('click', function () {
             document.querySelectorAll('.content-page').forEach(p => {
                 p.classList.remove('active');
             });
@@ -906,7 +1027,7 @@
         });
 
         // 返回列表页面
-        document.getElementById('back-to-list').addEventListener('click', function() {
+        document.getElementById('back-to-list').addEventListener('click', function () {
             document.querySelectorAll('.content-page').forEach(p => {
                 p.classList.remove('active');
             });
@@ -914,7 +1035,7 @@
         });
 
         // 取消申请
-        document.getElementById('cancel-apply').addEventListener('click', function() {
+        document.getElementById('cancel-apply').addEventListener('click', function () {
             document.querySelectorAll('.content-page').forEach(p => {
                 p.classList.remove('active');
             });
@@ -922,57 +1043,57 @@
         });
 
         // 登录表单提交
-        document.getElementById('login-form').addEventListener('submit', function(e) {
+        document.getElementById('login-form').addEventListener('submit', function (e) {
             e.preventDefault();
             document.getElementById('login-page').classList.remove('active');
             document.getElementById('main-app').classList.add('active');
         });
 
         // 退出登录
-        document.getElementById('logout-btn').addEventListener('click', function() {
+        document.getElementById('logout-btn').addEventListener('click', function () {
             document.getElementById('main-app').classList.remove('active');
             document.getElementById('login-page').classList.add('active');
             document.getElementById('user-menu').classList.add('hidden');
         });
 
         // 用户菜单切换
-        document.getElementById('user-menu-btn').addEventListener('click', function(e) {
+        document.getElementById('user-menu-btn').addEventListener('click', function (e) {
             e.stopPropagation();
             document.getElementById('user-menu').classList.toggle('hidden');
         });
 
-        document.addEventListener('click', function() {
+        document.addEventListener('click', function () {
             document.getElementById('user-menu').classList.add('hidden');
         });
 
         // 移动端菜单切换
-        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+        document.getElementById('mobile-menu-btn').addEventListener('click', function () {
             document.getElementById('mobile-menu').classList.toggle('hidden');
         });
 
         // 主题切换
-        document.getElementById('theme-toggle').addEventListener('click', function() {
+        document.getElementById('theme-toggle').addEventListener('click', function () {
             document.documentElement.classList.toggle('dark');
         });
 
         // 导出模态框
         document.querySelectorAll('.btn-primary').forEach(btn => {
             if (btn.textContent === '导出') {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     document.getElementById('export-modal').classList.remove('hidden');
                 });
             }
         });
 
-        document.getElementById('close-modal').addEventListener('click', function() {
+        document.getElementById('close-modal').addEventListener('click', function () {
             document.getElementById('export-modal').classList.add('hidden');
         });
 
-        document.getElementById('cancel-export').addEventListener('click', function() {
+        document.getElementById('cancel-export').addEventListener('click', function () {
             document.getElementById('export-modal').classList.add('hidden');
         });
 
-        document.getElementById('export-modal').addEventListener('click', function(e) {
+        document.getElementById('export-modal').addEventListener('click', function (e) {
             if (e.target === this) {
                 this.classList.add('hidden');
             }
@@ -981,25 +1102,106 @@
         // 添加用户模态框
         document.querySelectorAll('.btn-primary').forEach(btn => {
             if (btn.textContent === '添加用户') {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function () {
                     document.getElementById('add-user-modal').classList.remove('hidden');
                 });
             }
         });
 
-        document.getElementById('close-user-modal').addEventListener('click', function() {
+        document.getElementById('close-user-modal').addEventListener('click', function () {
             document.getElementById('add-user-modal').classList.add('hidden');
         });
 
-        document.getElementById('cancel-add-user').addEventListener('click', function() {
+        document.getElementById('cancel-add-user').addEventListener('click', function () {
             document.getElementById('add-user-modal').classList.add('hidden');
         });
 
-        document.getElementById('add-user-modal').addEventListener('click', function(e) {
+        document.getElementById('add-user-modal').addEventListener('click', function (e) {
             if (e.target === this) {
                 this.classList.add('hidden');
             }
         });
+
+        // API Key管理功能
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function () {
+                alert('已复制到剪贴板');
+            }).catch(function (err) {
+                console.error('复制失败:', err);
+                alert('复制失败，请手动复制');
+            });
+        }
+
+        function deleteApiKey(button) {
+            if (confirm('确定要删除这个API Key吗？')) {
+                const apiKeyItem = button.closest('.certificate-row');
+                if (apiKeyItem) {
+                    apiKeyItem.remove();
+                    alert('API Key已删除');
+                }
+            }
+        }
+
+        document.getElementById('add-api-key').addEventListener('click', function () {
+            const nameInput = document.getElementById('new-api-key-name');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                alert('请输入API Key名称');
+                return;
+            }
+
+            // 生成随机API Key和Secret
+            const apiKey = 'api-key-' + Math.random().toString(36).substr(2, 10);
+            const apiSecret = 'api-secret-' + Math.random().toString(36).substr(2, 15);
+            const createdAt = new Date().toLocaleString();
+
+            // 创建新的API Key项
+            const apiKeyList = document.getElementById('api-key-list');
+            const newApiKeyItem = document.createElement('div');
+            newApiKeyItem.className = 'p-6 certificate-row';
+            newApiKeyItem.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-3 mb-3">
+                        <h3 class="font-semibold text-lg">${name}</h3>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <div class="flex items-center">
+                                <label class="text-sm text-muted-foreground mr-2">API Key:</label>
+                                <input type="text" value="${apiKey}" class="input flex-1" readonly>
+                                <button class="btn btn-secondary ml-2" onclick="copyToClipboard('${apiKey}')">复制</button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center">
+                                <label class="text-sm text-muted-foreground mr-2">API Secret:</label>
+                                <input type="text" value="${apiSecret}" class="input flex-1" readonly>
+                                <button class="btn btn-secondary ml-2" onclick="copyToClipboard('${apiSecret}')">复制</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-muted-foreground">创建时间:</span>
+                            <span class="ml-2">${createdAt}</span>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">过期时间:</span>
+                            <span class="ml-2">永不过期</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 ml-4">
+                    <button class="btn btn-destructive" onclick="deleteApiKey(this)">删除</button>
+                </div>
+            `;
+
+            apiKeyList.appendChild(newApiKeyItem);
+            nameInput.value = '';
+            alert('API Key已生成');
+        });
     </script>
 </body>
+
 </html>

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MinGo.CertManager.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using MinGo.CertManager.Infrastructure.Data;
 namespace MinGo.CertManager.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260304124503_AddApiKeyEntity")]
+    partial class AddApiKeyEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
@@ -198,19 +201,9 @@ namespace MinGo.CertManager.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ApiKeyString")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("ApiSecretHash")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ApiSecretString")
-                        .IsRequired()
-                        .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
                     b.Property<long>("AppId")
@@ -222,6 +215,13 @@ namespace MinGo.CertManager.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Env")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("prod");
 
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("TEXT");
