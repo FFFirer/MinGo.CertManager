@@ -7,8 +7,8 @@
 
 <AuthorizeView>
     <Authorized>
-        <div class="relative">
-            <button @onclick="ToggleDropdown" class="flex items-center space-x-2 focus:outline-none">
+        <div class="relative" id="login-display-container">
+            <button id="login-display-button" class="flex items-center space-x-2 focus:outline-none">
                 <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white">
                     @(context.User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")
                 </div>
@@ -18,19 +18,16 @@
                 <span class="text-xs">▼</span>
             </button>
             
-            @if (showDropdown)
-            {
-                <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                    <a href="/api-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        API Key管理
-                    </a>
-                    <form method="post" action="Account/Logout" class="block">
-                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            退出登录
-                        </button>
-                    </form>
-                </div>
-            }
+            <div id="login-dropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden">
+                <a href="/api-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    API Key管理
+                </a>
+                <form method="post" action="Account/Logout" class="block">
+                    <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        退出登录
+                    </button>
+                </form>
+            </div>
         </div>
     </Authorized>
     <NotAuthorized>
@@ -38,9 +35,41 @@
     </NotAuthorized>
 </AuthorizeView>
 
+<script>
+    // 登录下拉菜单控制
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('login-display-container');
+        const button = document.getElementById('login-display-button');
+        const dropdown = document.getElementById('login-dropdown');
+        
+        if (container && button && dropdown) {
+            // 切换下拉菜单显示/隐藏
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('hidden');
+            });
+            
+            // 点击其他地方关闭下拉菜单
+            document.addEventListener('click', function() {
+                dropdown.classList.add('hidden');
+            });
+            
+            // 阻止点击下拉菜单内部时关闭
+            dropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // 失去焦点时关闭下拉菜单
+            container.addEventListener('blur', function() {
+                console.log("失去焦点")
+                dropdown.classList.add('hidden');
+            }, true);
+        }
+    });
+</script>
+
 @code {
     private ApplicationUser? user;
-    private bool showDropdown = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -51,10 +80,5 @@
         {
             user = await UserManager.GetUserAsync(principal);
         }
-    }
-
-    private void ToggleDropdown()
-    {
-        showDropdown = !showDropdown;
     }
 }
