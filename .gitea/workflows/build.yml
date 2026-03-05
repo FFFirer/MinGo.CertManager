@@ -2,10 +2,8 @@ name: Build and Release
 
 on:
   release:
-    types:
-      - published
-      - released
-      - prereleased
+    types: [ published, prereleased, released ]
+  workflow_dispatch:
 
 jobs:
   build:
