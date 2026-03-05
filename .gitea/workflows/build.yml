@@ -9,6 +9,7 @@ env:
   CONTAINER_REGISTRY: ${{ vars.DOCKER_REGISTRY }}
   CONTAINER_REGISTRY_USERNAME: ${{ vars.DOCKER_USERNAME }}
   CONTAINER_REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  IMAGE_NAME: mingo/certmanager
 
 jobs:
   build:
@@ -38,9 +39,6 @@ jobs:
           context: .
           push: ${{ github.event_name == 'release' }}
           tags: |
-            ${{ vars.DOCKER_REGISTRY }}/mingocertmanager:${{ env.VERSION }}
-            ${{ vars.DOCKER_REGISTRY }}/mingocertmanager:latest
-
-      - name: Test Docker image
-        run: docker run --rm ${{ vars.DOCKER_REGISTRY }}/mingocertmanager:latest dotnet test
+            ${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+            ${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
