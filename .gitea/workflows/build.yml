@@ -3,7 +3,9 @@ name: Build and Release
 on:
   release:
     types:
-      - created
+      - published
+      - released
+      - prereleased
 
 jobs:
   build:
