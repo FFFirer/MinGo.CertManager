@@ -65,7 +65,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                        <div class="mt-2 grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
                             <div>
                                 <span class="text-muted-foreground">申请时间:</span>
                                 <span class="ml-2">@cert.IssuedAt.ToString("yyyy-MM-dd")</span>
@@ -73,6 +73,10 @@
                             <div>
                                 <span class="text-muted-foreground">过期时间:</span>
                                 <span class="ml-2 @GetExpiryClass(cert.ExpiresAt)">@cert.ExpiresAt.ToString("yyyy-MM-dd")</span>
+                            </div>
+                            <div>
+                                <span class="text-muted-foreground">ACME环境:</span>
+                                <span class="ml-2">@(cert.UseStaging ? "测试环境" : "生产环境")</span>
                             </div>
                             <div>
                                 <span class="text-muted-foreground">ACME状态:</span>

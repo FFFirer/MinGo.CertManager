@@ -57,6 +57,7 @@ public class CertificateService : ICertificateService
             Id = Guid.NewGuid(),
             Domain = domain,
             IsWildcard = isWildcard,
+            UseStaging = useStaging,
             Status = CertificateStatus.Pending,
             AcmeStatus = AcmeProcessStatus.Initializing,
             CreatedAt = DateTime.UtcNow,
@@ -116,7 +117,7 @@ public class CertificateService : ICertificateService
             existingCertificate.Domain, existingCertificate.IsWildcard, existingCertificate.Status);
 
         var dnsProvider = await GetDefaultDnsProvider();
-        return await RequestCertificateAsync(existingCertificate.Domain, existingCertificate.IsWildcard, dnsProvider, false);
+        return await RequestCertificateAsync(existingCertificate.Domain, existingCertificate.IsWildcard, dnsProvider, existingCertificate.UseStaging);
     }
 
     public async Task<byte[]> ExportCertificateAsync(Guid certificateId, CertificateFormat format, string? password = null)

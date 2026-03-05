@@ -52,6 +52,15 @@
                         <InputText class="input" @bind-Value="applyModel.Email" placeholder="your-email@example.com" type="email" />
                     </div>
 
+                    <div>
+                        <label class="label">ACME环境</label>
+                        <InputSelect class="select" @bind-Value="applyModel.UseStaging">
+                            <option value="false">生产环境（Let's Encrypt）</option>
+                            <option value="true">测试环境（Let's Encrypt Staging）</option>
+                        </InputSelect>
+                        <p class="text-sm text-muted-foreground mt-1">测试环境用于验证配置，不会产生真实证书，建议首次使用时选择测试环境</p>
+                    </div>
+
                     <div class="flex justify-end gap-3 pt-4">
                         <button type="button" class="btn btn-secondary" @onclick="NavigateToCertificates">取消</button>
                         <button type="submit" class="btn btn-primary flex-1" disabled="@IsApplying">
@@ -78,6 +87,7 @@
         public bool IsWildcard { get; set; }
         public string DnsProvider { get; set; } = "Aliyun";
         public string Email { get; set; } = string.Empty;
+        public bool UseStaging { get; set; } = false;
     }
 
     private ApplyCertificateModel applyModel = new();
@@ -109,7 +119,7 @@
                 applyModel.Domain,
                 applyModel.IsWildcard,
                 dnsProvider,
-                true
+                applyModel.UseStaging
             );
 
             NavigationManager.NavigateTo("/certificates");
