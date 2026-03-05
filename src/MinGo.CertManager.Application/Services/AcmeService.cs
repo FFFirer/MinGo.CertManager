@@ -1,34 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Certes;
 using Certes.Acme;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MinGo.CertManager.Core.Constants;
+using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Configuration;
 
-namespace MinGo.CertManager.Infrastructure.Services;
-
-/// <summary>
-/// ACME 服务实现
-/// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md
-/// </summary>
-public interface IAcmeService
-{
-    Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false);
-    Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService);
-}
-
-public class CertificateResult
-{
-    public string CertificatePem { get; set; } = string.Empty;
-    public string PrivateKeyPem { get; set; } = string.Empty;
-    public string CertificateChainPem { get; set; } = string.Empty;
-}
-
-public enum AcmeEnvironment
-{
-    Production,
-    Staging
-}
+namespace MinGo.CertManager.Application.Services;
 
 /// <summary>
 /// ACME 服务实现类
@@ -52,7 +33,7 @@ public class AcmeService : IAcmeService
         _accountCache = accountCache;
     }
 
-    public async Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false)
+    public async Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, object dnsService, bool useStaging = false)
     {
         _logger.LogInformation("开始ACME证书申请: Domain={Domain}, IsWildcard={IsWildcard}, Environment={Environment}",
             domain, isWildcard, useStaging ? "Staging" : "Production");
@@ -120,7 +101,7 @@ public class AcmeService : IAcmeService
                 _authorizations[authDomain] = authorization;
                 _logger.LogInformation("处理授权: Domain={AuthDomain}", authDomain);
 
-                await HandleDnsChallengeAsync(authorization, dnsService, authDomain);
+                await HandleDnsChallengeAsync(authorization, (IAliyunDnsService)dnsService, authDomain);
             }
 
             _logger.LogInformation("等待所有授权验证完成");
@@ -251,24 +232,12 @@ public class AcmeService : IAcmeService
         }
     }
 
-    /// <summary>
-    /// 获取授权状态
-    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#authorizations
-    /// </summary>
-    /// <param name="authorization">授权上下文</param>
-    /// <returns>授权状态字符串（valid/invalid/pending/processing等）</returns>
     private async Task<string?> GetAuthorizationStatus(IAuthorizationContext authorization)
     {
         var resource = await authorization.Resource();
         return resource.Status?.ToString();
     }
 
-    /// <summary>
-    /// 获取授权错误信息
-    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#authorizations
-    /// </summary>
-    /// <param name="authorization">授权上下文</param>
-    /// <returns>错误详情字符串</returns>
     private async Task<string> GetAuthorizationError(IAuthorizationContext authorization)
     {
         var resource = await authorization.Resource();
@@ -287,36 +256,16 @@ public class AcmeService : IAcmeService
         return "未知错误";
     }
 
-    /// <summary>
-    /// 从授权中获取DNS01类型的挑战
-    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#challenges
-    /// </summary>
-    /// <param name="authorization">授权上下文</param>
-    /// <returns>DNS01挑战上下文，如果未找到则返回null</returns>
     private async Task<IChallengeContext?> GetDnsChallenge(IAuthorizationContext authorization)
     {
         return await authorization.Dns();
     }
 
-    /// <summary>
-    /// 获取DNS记录值（用于DNS TXT记录）
-    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#challenges
-    /// 使用 AccountKey.DnsTxt() 方法计算 DNS TXT 记录值
-    /// </summary>
-    /// <param name="challenge">挑战上下文</param>
-    /// <returns>DNS记录值字符串</returns>
     private string GetDnsRecord(IChallengeContext challenge)
     {
         return _acmeContext?.AccountKey.DnsTxt(challenge.Token) ?? string.Empty;
-        // return _accountKey?.DnsTxt(challenge.Token) ?? string.Empty;
     }
 
-    /// <summary>
-    /// 向ACME服务器验证挑战
-    /// 参考资料: https://github.com/fszlin/certes/blob/main/docs/APIv2.md#challenges
-    /// 使用 challenge.Validate() 方法通知 ACME 服务器验证挑战
-    /// </summary>
-    /// <param name="challenge">挑战上下文</param>
     private async Task ValidateChallenge(IChallengeContext challenge)
     {
         await challenge.Validate();
@@ -401,7 +350,7 @@ public class AcmeService : IAcmeService
         }
     }
 
-    public async Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService)
+    public async Task CleanupAsync(string domain, bool isWildcard, object dnsService)
     {
         _logger.LogInformation("清理ACME资源: Domain={Domain}, IsWildcard={IsWildcard}", domain, isWildcard);
 
@@ -419,7 +368,6 @@ public class AcmeService : IAcmeService
                 var recordName = $"_acme-challenge.{rr}";
                 string? dnsKey = null;
 
-                // 尝试从已存储的授权中获取DNS密钥
                 if (_authorizations.TryGetValue(authDomain, out var authorization))
                 {
                     var dnsChallenge = await GetDnsChallenge(authorization);
@@ -429,9 +377,8 @@ public class AcmeService : IAcmeService
                     }
                 }
 
-                // 即使没有授权信息，也尝试删除DNS记录
                 _logger.LogInformation("删除DNS TXT记录: Record={Record}", recordName);
-                await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsKey ?? string.Empty);
+                await ((IAliyunDnsService)dnsService).ClearTxtRecordAsync(rootDomain, recordName, dnsKey ?? string.Empty);
             }
 
             _authorizations.Clear();

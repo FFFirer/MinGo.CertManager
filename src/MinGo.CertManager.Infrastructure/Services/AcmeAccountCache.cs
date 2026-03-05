@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MinGo.CertManager.Core.Entities;
+using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Data;
 
 namespace MinGo.CertManager.Infrastructure.Services;

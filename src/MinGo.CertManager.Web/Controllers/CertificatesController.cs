@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using MinGo.CertManager.Core.Entities;
-using MinGo.CertManager.Infrastructure.Services;
+using MinGo.CertManager.Core.Services;
 
 namespace MinGo.CertManager.Web.Controllers;
 

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Infrastructure.Repositories;
-using MinGo.CertManager.Infrastructure.Services;
+using MinGo.CertManager.Core.Services;
 using Quartz;
 
 namespace MinGo.CertManager.Infrastructure.Jobs;
