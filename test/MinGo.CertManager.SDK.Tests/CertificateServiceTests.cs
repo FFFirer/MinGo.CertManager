@@ -25,7 +25,8 @@ public class CertificateServiceTests
             Domain = "example.com",
             Status = "Active",
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddDays(90)
+            ExpiresAt = DateTime.UtcNow.AddDays(90),
+            Error = string.Empty
         };
 
         _mockApiClient
@@ -70,7 +71,7 @@ public class CertificateServiceTests
         // Arrange
         var domain = "example.com";
         var format = CertificateFormat.Pem;
-        string password = null;
+        string? password = null;
         var expectedResponse = new byte[] { 1, 2, 3 };
 
         _mockApiClient

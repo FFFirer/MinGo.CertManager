@@ -40,11 +40,15 @@ public class ApiClient
                 }
 
                 var errorContent = await response.Content.ReadAsStringAsync();
-                ErrorResponse errorResponse;
+                ErrorResponse? errorResponse;
 
                 try
                 {
                     errorResponse = JsonSerializer.Deserialize<ErrorResponse>(errorContent);
+                    if (errorResponse == null)
+                    {
+                        throw new ApiException($"API request failed with status code: {response.StatusCode}", (int)response.StatusCode);
+                    }
                 }
                 catch
                 {
@@ -55,7 +59,12 @@ public class ApiClient
             }
 
             var content = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<T>(content);
+            var result = JsonSerializer.Deserialize<T>(content);
+            if (result == null)
+            {
+                throw new SdkException("Failed to parse API response: null result");
+            }
+            return result;
         }
         catch (HttpRequestException ex)
         {
@@ -87,11 +96,15 @@ public class ApiClient
                 }
 
                 var errorContent = await response.Content.ReadAsStringAsync();
-                ErrorResponse errorResponse;
+                ErrorResponse? errorResponse;
 
                 try
                 {
                     errorResponse = JsonSerializer.Deserialize<ErrorResponse>(errorContent);
+                    if (errorResponse == null)
+                    {
+                        throw new ApiException($"API request failed with status code: {response.StatusCode}", (int)response.StatusCode);
+                    }
                 }
                 catch
                 {

@@ -11,10 +11,10 @@ public class CertificateResponse
     public Guid CertificateId { get; set; }
 
     [JsonPropertyName("Domain")]
-    public string Domain { get; set; }
+    public required string Domain { get; set; }
 
     [JsonPropertyName("Status")]
-    public string Status { get; set; }
+    public required string Status { get; set; }
 
     [JsonPropertyName("CreatedAt")]
     public DateTime CreatedAt { get; set; }
@@ -23,5 +23,5 @@ public class CertificateResponse
     public DateTime ExpiresAt { get; set; }
 
     [JsonPropertyName("Error")]
-    public string Error { get; set; }
+    public required string Error { get; set; }
 }
