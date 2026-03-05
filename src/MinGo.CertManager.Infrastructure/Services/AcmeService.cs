@@ -123,8 +123,8 @@ public class AcmeService : IAcmeService
                 await HandleDnsChallengeAsync(authorization, dnsService, authDomain);
             }
 
-            _logger.LogInformation("等待授权验证完成");
-            await Task.Delay(CertificateConstants.AuthorizationCheckDelayMilliseconds);
+            _logger.LogInformation("等待所有授权验证完成");
+            await WaitForAllAuthorizationsAsync();
 
             _logger.LogInformation("准备生成证书密钥对");
             var certificateKey = KeyFactory.NewKey(KeyAlgorithm.RS256);
@@ -332,6 +332,73 @@ public class AcmeService : IAcmeService
         var domain = string.Join(".", spans[index..]!);
 
         return (rr, domain);
+    }
+
+    private async Task WaitForAllAuthorizationsAsync()
+    {
+        _logger.LogInformation("开始轮询所有授权状态");
+
+        for (int retry = 0; retry < CertificateConstants.AuthorizationCheckMaxRetries; retry++)
+        {
+            var allValid = true;
+            var anyInvalid = false;
+            var pendingAuthorizations = new List<string>();
+
+            foreach (var (domain, authorization) in _authorizations)
+            {
+                var status = await GetAuthorizationStatus(authorization);
+                _logger.LogInformation("授权状态检查: Domain={Domain}, Status={Status}", domain, status);
+
+                if (status?.Equals("valid", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    continue;
+                }
+                else if (status?.Equals("invalid", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    var error = await GetAuthorizationError(authorization);
+                    _logger.LogError("授权验证失败: Domain={Domain}, Error={Error}", domain, error);
+                    anyInvalid = true;
+                    allValid = false;
+                }
+                else if (status?.Equals("pending", StringComparison.OrdinalIgnoreCase) == true
+                    || status?.Equals("processing", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    pendingAuthorizations.Add(domain);
+                    allValid = false;
+                }
+                else
+                {
+                    _logger.LogWarning("未知的授权状态: Domain={Domain}, Status={Status}", domain, status);
+                    allValid = false;
+                }
+            }
+
+            if (allValid)
+            {
+                _logger.LogInformation("所有授权验证成功");
+                return;
+            }
+
+            if (anyInvalid)
+            {
+                throw new Exception("部分授权验证失败");
+            }
+
+            if (retry < CertificateConstants.AuthorizationCheckMaxRetries - 1)
+            {
+                _logger.LogInformation("等待授权验证: PendingDomains={PendingDomains}, Delay={Delay}秒, Retry={Retry}/{MaxRetries}",
+                    string.Join(", ", pendingAuthorizations),
+                    CertificateConstants.AuthorizationCheckIntervalMilliseconds / 1000,
+                    retry + 1,
+                    CertificateConstants.AuthorizationCheckMaxRetries);
+                await Task.Delay(CertificateConstants.AuthorizationCheckIntervalMilliseconds);
+            }
+            else
+            {
+                _logger.LogError("授权验证超时");
+                throw new TimeoutException($"授权验证超时，已重试 {CertificateConstants.AuthorizationCheckMaxRetries} 次");
+            }
+        }
     }
 
     public async Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService)

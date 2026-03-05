@@ -14,6 +14,7 @@ public interface ICertificateRepository
     Task<List<Certificate>> GetAllAsync();
     Task<List<Certificate>> GetByStatusAsync(CertificateStatus status);
     Task<List<Certificate>> SearchByDomainAsync(string domain);
+    Task<Certificate?> GetLatestValidCertificateByDomainAsync(string domain);
     Task<Certificate> AddAsync(Certificate certificate);
     Task<Certificate> UpdateAsync(Certificate certificate);
     Task DeleteAsync(Guid id);
@@ -52,6 +53,14 @@ public class CertificateRepository : ICertificateRepository
             .Where(c => c.Domain.Contains(domain))
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
+    }
+
+    public async Task<Certificate?> GetLatestValidCertificateByDomainAsync(string domain)
+    {
+        return await _context.Certificates
+            .Where(c => c.Domain == domain && c.Status == CertificateStatus.Active)
+            .OrderByDescending(c => c.CreatedAt)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<Certificate> AddAsync(Certificate certificate)

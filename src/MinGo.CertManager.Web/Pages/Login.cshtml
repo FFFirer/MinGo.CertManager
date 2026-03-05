@@ -1,0 +1,48 @@
+@page "/login"
+@model MinGo.CertManager.Web.Pages.LoginModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    ViewData["Title"] = "MinGo.CertManager - 证书管理系统";
+    Layout = "_Layout";
+}
+
+<div class="min-h-screen flex items-center justify-center px-4">
+    <div class="card p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary mb-2">MinGo.CertManager</h1>
+            <p class="text-muted-foreground">证书管理系统</p>
+        </div>
+
+        <form id="login-form" method="post" class="space-y-6">
+            @Html.AntiForgeryToken()
+            @if (ViewContext.ModelState.ErrorCount > 0)
+            {
+                <div asp-validation-summary="All" class="p-3 bg-red-100 text-red-700 rounded-md"></div>
+            }
+
+            <div>
+                <label class="label">用户名</label>
+                <input asp-for="Input.Username" type="text" class="input" placeholder="请输入用户名">
+                <span asp-validation-for="Input.Username" class="text-red-500 text-sm"></span>
+            </div>
+
+            <div>
+                <label class="label">密码</label>
+                <input asp-for="Input.Password" type="password" class="input" placeholder="请输入密码">
+                <span asp-validation-for="Input.Password" class="text-red-500 text-sm"></span>
+            </div>
+
+            <div class="flex items-center">
+                <input asp-for="Input.RememberMe" type="checkbox" class="checkbox" id="remember">
+                <label for="remember" class="ml-2 text-sm">记住我</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full">登录</button>
+        </form>
+
+        <div class="mt-6 text-center text-sm text-muted-foreground">
+            <p>默认管理员账号: admin / admin</p>
+        </div>
+    </div>
+</div>

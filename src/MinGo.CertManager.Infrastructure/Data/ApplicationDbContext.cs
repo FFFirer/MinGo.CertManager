@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using MinGo.CertManager.Core.Entities;
 
 namespace MinGo.CertManager.Infrastructure.Data;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -13,6 +14,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Certificate> Certificates { get; set; } = null!;
     public DbSet<DnsProvider> DnsProviders { get; set; } = null!;
     public DbSet<AcmeAccount> AcmeAccounts { get; set; } = null!;
+    public DbSet<ApiKey> ApiKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +46,19 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Contact).IsRequired().HasMaxLength(255);
             entity.Property(e => e.AcmeServerUrl).IsRequired().HasMaxLength(512);
             entity.HasIndex(e => new { e.AcmeServerUrl, e.Contact }).IsUnique();
+        });
+
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ApiKeyString).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.ApiKeyHash).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.ApiSecretString).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.ApiSecretHash).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Status).HasDefaultValue(1);
+            entity.Property(e => e.RateLimitQpm).HasDefaultValue(1000);
+            entity.Property(e => e.Description).HasMaxLength(255);
+            entity.HasIndex(e => e.ApiKeyHash).IsUnique();
         });
     }
 }

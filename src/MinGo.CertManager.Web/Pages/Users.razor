@@ -1,0 +1,134 @@
+@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using MinGo.CertManager.Core.Entities
+@using MinGo.CertManager.Infrastructure.Data
+@using System.Linq
+
+<PageHeader
+    Title="用户管理"
+    Description="管理系统用户">
+    <Actions>
+        <button class="btn btn-primary" @onclick="ShowAddUserDialog">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            添加用户
+        </button>
+    </Actions>
+</PageHeader>
+
+<div class="card">
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users)
+                {
+                    <tr>
+                        <td class="font-medium">@user.UserName</td>
+                        <td><span class="badge badge-info">@GetRoleText(user)</span></td>
+                        <td>@user.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            @if (user.UserName != "admin")
+                            {
+                                <button class="btn btn-secondary" @onclick="@(() => DeleteUser(user.Id))">删除</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<AddUserModal IsVisible="@showAddUserModal" OnClose="HideAddUserDialog" OnAdd="HandleAddUser" />
+
+@code {
+    [Inject]
+    private UserManager<ApplicationUser> UserManager { get; set; }
+
+    [Inject]
+    private RoleManager<IdentityRole> RoleManager { get; set; }
+
+    private List<ApplicationUser> users = new();
+    private Dictionary<string, string> userRoles = new();
+    private bool showAddUserModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        users = UserManager.Users.ToList();
+        userRoles = new Dictionary<string, string>();
+
+        foreach (var user in users)
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            var roleName = roles.FirstOrDefault();
+            userRoles[user.Id] = roleName switch
+            {
+                "Admin" => "管理员",
+                "User" => "普通用户",
+                _ => "未知"
+            };
+        }
+    }
+
+    private string GetRoleText(ApplicationUser user)
+    {
+        return userRoles.TryGetValue(user.Id, out var roleText) ? roleText : "未知";
+    }
+
+    private void ShowAddUserDialog()
+    {
+        showAddUserModal = true;
+    }
+
+    private void HideAddUserDialog()
+    {
+        showAddUserModal = false;
+    }
+
+    private async Task HandleAddUser(User user)
+    {
+        var newUser = new ApplicationUser
+        {
+            UserName = user.Username,
+            Email = $"{user.Username}@example.com",
+            EmailConfirmed = true,
+            Status = UserStatus.Active,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var result = await UserManager.CreateAsync(newUser, user.PasswordHash);
+        if (result.Succeeded)
+        {
+            var roleName = user.Role == UserRole.Admin ? "Admin" : "User";
+            await UserManager.AddToRoleAsync(newUser, roleName);
+            await LoadUsers();
+        }
+    }
+
+    private async Task DeleteUser(string userId)
+    {
+        var user = await UserManager.FindByIdAsync(userId);
+        if (user != null && user.UserName != "admin")
+        {
+            await UserManager.DeleteAsync(user);
+            await LoadUsers();
+        }
+    }
+}

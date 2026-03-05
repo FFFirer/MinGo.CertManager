@@ -1,0 +1,153 @@
+@page "/profile"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using MinGo.CertManager.Infrastructure.Data
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageHeader
+    Title="个人设置"
+    Description="管理个人账号信息">
+</PageHeader>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1">
+        <div class="card">
+            <div class="p-6">
+                <div class="flex flex-col items-center">
+                    <div class="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-white text-3xl font-bold mb-4">
+                        @(currentUser?.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")
+                    </div>
+                    <h2 class="text-xl font-semibold">@currentUser?.Identity?.Name</h2>
+                    <p class="text-muted-foreground">@UserRole</p>
+                </div>
+                
+                <div class="mt-6 space-y-2">
+                    <button class="w-full text-left px-4 py-3 rounded-md bg-accent text-accent-foreground font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        个人信息
+                    </button>
+                    <button class="w-full text-left px-4 py-3 rounded-md hover:bg-accent hover:text-accent-foreground font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        安全设置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="lg:col-span-2">
+        <div class="card">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold mb-4">修改密码</h3>
+                
+                <EditForm Model="passwordModel" OnValidSubmit="HandleChangePassword">
+                    <DataAnnotationsValidator />
+                    <div class="space-y-4">
+                        <div>
+                            <label class="label">当前密码</label>
+                            <InputText type="password" class="input" @bind-Value="passwordModel.CurrentPassword" placeholder="请输入当前密码" />
+                            <ValidationMessage For="() => passwordModel.CurrentPassword" class="text-red-500 text-sm" />
+                        </div>
+                        
+                        <div>
+                            <label class="label">新密码</label>
+                            <InputText type="password" class="input" @bind-Value="passwordModel.NewPassword" placeholder="请输入新密码" />
+                            <ValidationMessage For="() => passwordModel.NewPassword" class="text-red-500 text-sm" />
+                        </div>
+                        
+                        <div>
+                            <label class="label">确认新密码</label>
+                            <InputText type="password" class="input" @bind-Value="passwordModel.ConfirmPassword" placeholder="请再次输入新密码" />
+                            <ValidationMessage For="() => passwordModel.ConfirmPassword" class="text-red-500 text-sm" />
+                        </div>
+                        
+                        @if (!string.IsNullOrEmpty(Message))
+                        {
+                            <div class="p-3 rounded-md @(IsSuccess ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")">
+                                @Message
+                            </div>
+                        }
+                        
+                        <div class="flex justify-end">
+                            <button type="submit" class="btn btn-primary">保存修改</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject]
+    private UserManager<ApplicationUser> UserManager { get; set; }
+    
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+    
+    private ClaimsPrincipal currentUser;
+    private PasswordModel passwordModel = new();
+    private string Message = string.Empty;
+    private bool IsSuccess = false;
+    
+    private string UserRole => GetUserRole();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User;
+    }
+    
+    private string GetUserRole()
+    {
+        if (currentUser?.IsInRole("Admin") == true)
+        {
+            return "管理员";
+        }
+        return "用户";
+    }
+    
+    private async Task HandleChangePassword()
+    {
+        if (passwordModel.NewPassword != passwordModel.ConfirmPassword)
+        {
+            Message = "新密码和确认密码不一致";
+            IsSuccess = false;
+            return;
+        }
+        
+        var user = await UserManager.GetUserAsync(currentUser);
+        if (user == null)
+        {
+            Message = "用户不存在";
+            IsSuccess = false;
+            return;
+        }
+        
+        var result = await UserManager.ChangePasswordAsync(user, passwordModel.CurrentPassword, passwordModel.NewPassword);
+        if (result.Succeeded)
+        {
+            Message = "密码修改成功";
+            IsSuccess = true;
+            passwordModel = new();
+        }
+        else
+        {
+            Message = string.Join("\n", result.Errors.Select(e => e.Description));
+            IsSuccess = false;
+        }
+    }
+    
+    private class PasswordModel
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

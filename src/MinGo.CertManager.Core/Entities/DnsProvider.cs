@@ -4,7 +4,9 @@ namespace MinGo.CertManager.Core.Entities;
 
 public enum DnsProviderType
 {
-    Aliyun = 0
+    Aliyun = 0,
+    Cloudflare = 1,
+    Dnspod = 2
 }
 
 public class DnsProvider

@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="AlibabaCloud.SDK.Alidns20150109" Version="4.3.0" />
     <PackageReference Include="Certes" Version="3.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

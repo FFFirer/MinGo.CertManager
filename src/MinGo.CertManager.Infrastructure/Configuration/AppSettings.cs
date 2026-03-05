@@ -33,3 +33,19 @@ public class QuartzSettings
     public string SchedulerName { get; set; } = "MinGo CertManager Scheduler";
     public string SchedulerInstanceId { get; set; } = "MinGo-CertManager-Scheduler";
 }
+
+public class ApiKeySettings
+{
+    public const string SectionName = "ApiKeys";
+
+    public List<ApiKeyItem> Keys { get; set; } = new List<ApiKeyItem>();
+}
+
+public class ApiKeyItem
+{
+    public string Name { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+    public string Secret { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ExpiredAt { get; set; }
+}

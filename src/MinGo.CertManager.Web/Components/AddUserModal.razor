@@ -1,0 +1,81 @@
+@using MinGo.CertManager.Core.Entities
+
+<Modal IsVisible="@IsVisible" Title="添加用户" OnClose="HandleClose" OnOverlayClick="HandleClose">
+    <EditForm Model="@userModel" OnValidSubmit="HandleAddUser">
+        <DataAnnotationsValidator />
+        <div class="space-y-6">
+            <div>
+                <label class="label">用户名</label>
+                <InputText class="input" @bind-Value="userModel.Username" placeholder="请输入用户名" />
+            </div>
+
+            <div>
+                <label class="label">密码</label>
+                <InputText type="password" class="input" @bind-Value="userModel.Password" placeholder="请输入密码" />
+            </div>
+
+            <div>
+                <label class="label">确认密码</label>
+                <InputText type="password" class="input" @bind-Value="userModel.ConfirmPassword" placeholder="请再次输入密码" />
+            </div>
+
+            <div>
+                <label class="label">角色</label>
+                <select class="input" @bind="userModel.Role">
+                    <option value="@UserRole.Admin">管理员</option>
+                    <option value="@UserRole.User">普通用户</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" class="btn btn-secondary" @onclick="HandleClose">取消</button>
+                <button type="submit" class="btn btn-primary">添加</button>
+            </div>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback<User> OnAdd { get; set; }
+
+    private class UserModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
+        public UserRole Role { get; set; } = UserRole.User;
+    }
+
+    private UserModel userModel = new();
+
+    private async Task HandleClose()
+    {
+        userModel = new();
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleAddUser()
+    {
+        if (userModel.Password != userModel.ConfirmPassword)
+        {
+            return;
+        }
+
+        var newUser = new User
+        {
+            Username = userModel.Username,
+            PasswordHash = userModel.Password,
+            Role = userModel.Role
+        };
+
+        await OnAdd.InvokeAsync(newUser);
+        await HandleClose();
+    }
+}

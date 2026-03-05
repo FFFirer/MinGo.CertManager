@@ -1,19 +1,38 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager NavigationManager
 
 <PageTitle>MinGo.CertManager.Web</PageTitle>
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="min-h-screen bg-background text-foreground">
+    @if (!IsLoginPage)
+    {
+        <HeaderNav />
+    }
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+    <main class="@(IsLoginPage ? "" : "pt-16")">
+        <div class="@(IsLoginPage ? "" : "container mx-auto px-4 sm:px-6 lg:px-8 py-8")">
             @Body
-        </article>
+        </div>
     </main>
 </div>
+
+@code {
+    private bool IsLoginPage => NavigationManager.Uri.Contains("/login");
+
+    protected override Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        StateHasChanged();
+    }
+}

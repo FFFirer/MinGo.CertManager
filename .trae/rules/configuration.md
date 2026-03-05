@@ -1,3 +1,6 @@
+---
+alwaysApply: true
+---
 # 配置说明
 
 MinGo.CertManager 支持通过配置文件和环境变量进行配置。
