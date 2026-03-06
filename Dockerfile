@@ -7,11 +7,14 @@ RUN npm install -g pnpm
 # 设置工作目录
 WORKDIR /app
 
-# 复制 Web 目录
-COPY src/MinGo.CertManager.Web .
+# 复制 package.json 和 pnpm-lock.yaml 文件，用于缓存
+COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml .
 
-# 还原 npm 包
+# 还原 npm 包（使用缓存）
 RUN pnpm install
+
+# 复制 Web 目录其余文件
+COPY src/MinGo.CertManager.Web .
 
 # 构建 tailwindcss 脚本到 wwwroot 目录
 RUN pnpm run build
@@ -22,14 +25,14 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 # 设置工作目录
 WORKDIR /app
 
-# 复制 .Net 的项目文件及解决方案文件
+# 复制 .Net 的项目文件及解决方案文件，用于缓存
 COPY *.sln .
 COPY src/MinGo.CertManager.Web/MinGo.CertManager.Web.csproj src/MinGo.CertManager.Web/
 COPY src/MinGo.CertManager.Application/MinGo.CertManager.Application.csproj src/MinGo.CertManager.Application/
 COPY src/MinGo.CertManager.Core/MinGo.CertManager.Core.csproj src/MinGo.CertManager.Core/
 COPY src/MinGo.CertManager.Infrastructure/MinGo.CertManager.Infrastructure.csproj src/MinGo.CertManager.Infrastructure/
 
-# 还原 nuget 包
+# 还原 nuget 包（使用缓存）
 RUN dotnet restore
 
 # 复制全部项目文件
