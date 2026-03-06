@@ -1,5 +1,5 @@
 # 第一阶段：构建前端
-FROM node:20 AS frontend-build
+FROM docker.io/library/node:20 AS frontend-build
 
 # 安装 pnpm
 RUN npm install -g pnpm
