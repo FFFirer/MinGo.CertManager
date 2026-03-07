@@ -40,6 +40,6 @@ docs
 **/*.sqlite
 
 # 包管理文件
-**/packages.lock.json
-**/pnpm-lock.yaml
-**/yarn.lock
+# **/packages.lock.json
+# **/pnpm-lock.yaml
+# **/yarn.lock

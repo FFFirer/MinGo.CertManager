@@ -11,7 +11,7 @@ WORKDIR /app
 COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml .
 
 # 还原 npm 包（使用缓存）
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
 # 复制 Web 目录其余文件
 COPY src/MinGo.CertManager.Web .
