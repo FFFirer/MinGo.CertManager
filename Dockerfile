@@ -32,6 +32,7 @@ COPY src/MinGo.CertManager.Application/MinGo.CertManager.Application.csproj src/
 COPY src/MinGo.CertManager.Core/MinGo.CertManager.Core.csproj src/MinGo.CertManager.Core/
 COPY src/MinGo.CertManager.Infrastructure/MinGo.CertManager.Infrastructure.csproj src/MinGo.CertManager.Infrastructure/
 
+RUN ls
 # 还原 nuget 包（使用缓存）
 RUN dotnet restore
 
