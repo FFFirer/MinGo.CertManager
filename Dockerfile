@@ -40,6 +40,7 @@ COPY src/MinGo.CertManager.Web/MinGo.CertManager.Web.csproj src/MinGo.CertManage
 COPY src/MinGo.CertManager.Application/MinGo.CertManager.Application.csproj src/MinGo.CertManager.Application/
 COPY src/MinGo.CertManager.Core/MinGo.CertManager.Core.csproj src/MinGo.CertManager.Core/
 COPY src/MinGo.CertManager.Infrastructure/MinGo.CertManager.Infrastructure.csproj src/MinGo.CertManager.Infrastructure/
+COPY src/MinGo.CertManager.SDK/MinGo.CertManager.SDK.csproj src/MinGo.CertManager.SDK/
 
 RUN pwd
 # 还原 nuget 包（使用缓存）
