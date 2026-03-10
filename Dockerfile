@@ -8,6 +8,8 @@ ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
+RUN npm install -g corepack@latest
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm config set registry https://registry.npmmirror.com
 
