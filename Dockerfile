@@ -8,13 +8,15 @@ ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm config set registry https://registry.npmmirror.com
+
 # 设置工作目录
 WORKDIR /app
 
 # 复制 package.json 和 pnpm-lock.yaml 文件，用于缓存
 COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml .
 
-RUN pnpm config set registry https://registry.npmmirror.com
 # 还原 npm 包（使用缓存）
 RUN pnpm install --frozen-lockfile
 
