@@ -2,7 +2,11 @@
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS frontend-build
 
 # 安装 pnpm
-RUN npm install -g pnpm
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 
 # 设置工作目录
 WORKDIR /app
