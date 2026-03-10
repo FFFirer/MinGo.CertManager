@@ -38,6 +38,7 @@ COPY src/MinGo.CertManager.Infrastructure/MinGo.CertManager.Infrastructure.cspro
 
 RUN ls
 # 还原 nuget 包（使用缓存）
+RUN ls 
 RUN dotnet restore
 
 # 复制全部项目文件
