@@ -35,13 +35,13 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 WORKDIR /app
 
 # 复制 .Net 的项目文件及解决方案文件，用于缓存
-COPY *.sln .
+COPY *.slnx .
 COPY src/MinGo.CertManager.Web/MinGo.CertManager.Web.csproj src/MinGo.CertManager.Web/
 COPY src/MinGo.CertManager.Application/MinGo.CertManager.Application.csproj src/MinGo.CertManager.Application/
 COPY src/MinGo.CertManager.Core/MinGo.CertManager.Core.csproj src/MinGo.CertManager.Core/
 COPY src/MinGo.CertManager.Infrastructure/MinGo.CertManager.Infrastructure.csproj src/MinGo.CertManager.Infrastructure/
 
-RUN ls
+RUN pwd
 # 还原 nuget 包（使用缓存）
 RUN ls 
 RUN dotnet restore
