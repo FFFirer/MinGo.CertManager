@@ -51,9 +51,9 @@ alwaysApply: true
 
 - 实现层次为更具体的实现依赖更抽象的逻辑
 - 分为业务Core、Application、Infrastructure、Web
-  - Core：实体，DTO，共享工具类，基础设施能力的抽象，不依赖
-  - Application: 业务逻辑实现，依赖Core，不会直接与外部交互
-  - Infrastructure: 仅依赖Core，与外部基础设施，如数据库、文件系统、网络等
+  - Core：实体，DTO，共享工具类，基础设施能力的抽象，业务能力抽象，不依赖
+  - Application: 业务逻辑组织，依赖Core，不依赖Infrastructure，Web
+  - Infrastructure: 仅依赖Core，与外部基础设施，如数据库、文件系统、网络等，也可能是dns提供商这些提供通用能力，同一个能力可以被不同的服务供应商提供
   - Web: 依赖Application和Infrastructure，实现与外部系统的交互，如Web API、Blazor等
 
 ## 其他

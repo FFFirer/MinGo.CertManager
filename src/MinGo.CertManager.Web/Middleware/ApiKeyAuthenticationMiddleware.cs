@@ -2,7 +2,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using MinGo.CertManager.Infrastructure.Services;
+using MinGo.CertManager.Core.Services;
 
 namespace MinGo.CertManager.Web.Middleware;
 

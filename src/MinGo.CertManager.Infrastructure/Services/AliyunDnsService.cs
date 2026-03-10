@@ -4,23 +4,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MinGo.CertManager.Infrastructure.Configuration;
+using MinGo.CertManager.Core.Services;
 using AlibabaCloud.SDK.Alidns20150109;
 using AlibabaCloud.SDK.Alidns20150109.Models;
 using AlibabaCloud.OpenApiClient.Models;
 using Mapster;
 
 namespace MinGo.CertManager.Infrastructure.Services;
-
-/// <summary>
-/// 阿里云 DNS 服务接口
-/// 参考资料: https://help.aliyun.com/zh/dns/developer-reference/api-alidns-2015-01-09
-/// </summary>
-public interface IAliyunDnsService
-{
-    Task ClearTxtRecordAsync(string rootDomain, string recordName, string dnsTxt);
-    Task CreateTxtRecordAsync(string rootDomain, string recordName, string dnsTxt);
-    Task DeleteTxtRecordAsync(string rootDomain, string recordName, string dnsTxt);
-}
 
 /// <summary>
 /// 阿里云 DNS 服务实现类

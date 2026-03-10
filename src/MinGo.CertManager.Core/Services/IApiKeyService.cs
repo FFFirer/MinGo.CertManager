@@ -1,4 +1,4 @@
-namespace MinGo.CertManager.Infrastructure.Services;
+namespace MinGo.CertManager.Core.Services;
 
 /// <summary>
 /// API Key服务接口
@@ -53,67 +53,67 @@ public interface IApiKeyService
 }
 
 /// <summary>
-    /// API Key信息
+/// API Key信息
+/// </summary>
+public class ApiKeyInfo
+{
+    /// <summary>
+    /// ID
     /// </summary>
-    public class ApiKeyInfo
-    {
-        /// <summary>
-        /// ID
-        /// </summary>
-        public long Id { get; set; }
-        
-        /// <summary>
-        /// 应用ID
-        /// </summary>
-        public long AppId { get; set; }
-        
-        /// <summary>
-        /// API Key（掩码）
-        /// </summary>
-        public string ApiKeyMask { get; set; } = string.Empty;
-        
-        /// <summary>
-        /// API Key（完整）
-        /// </summary>
-        public string ApiKey { get; set; } = string.Empty;
-        
-        /// <summary>
-        /// API Secret（完整）
-        /// </summary>
-        public string ApiSecret { get; set; } = string.Empty;
-        
-        /// <summary>
-        /// 描述
-        /// </summary>
-        public string? Description { get; set; }
-        
-        /// <summary>
-        /// 状态
-        /// </summary>
-        public int Status { get; set; }
-        
-        /// <summary>
-        /// IP白名单
-        /// </summary>
-        public string? IpWhitelist { get; set; }
-        
-        /// <summary>
-        /// 每分钟限流
-        /// </summary>
-        public int RateLimitQpm { get; set; }
-        
-        /// <summary>
-        /// 创建时间
-        /// </summary>
-        public DateTime CreatedAt { get; set; }
-        
-        /// <summary>
-        /// 过期时间
-        /// </summary>
-        public DateTime? ExpiresAt { get; set; }
-        
-        /// <summary>
-        /// 最后使用时间
-        /// </summary>
-        public DateTime? LastUsedAt { get; set; }
-    }
+    public long Id { get; set; }
+    
+    /// <summary>
+    /// 应用ID
+    /// </summary>
+    public long AppId { get; set; }
+    
+    /// <summary>
+    /// API Key（掩码）
+    /// </summary>
+    public string ApiKeyMask { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// API Key（完整）
+    /// </summary>
+    public string ApiKey { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// API Secret（完整）
+    /// </summary>
+    public string ApiSecret { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 描述
+    /// </summary>
+    public string? Description { get; set; }
+    
+    /// <summary>
+    /// 状态
+    /// </summary>
+    public int Status { get; set; }
+    
+    /// <summary>
+    /// IP白名单
+    /// </summary>
+    public string? IpWhitelist { get; set; }
+    
+    /// <summary>
+    /// 每分钟限流
+    /// </summary>
+    public int RateLimitQpm { get; set; }
+    
+    /// <summary>
+    /// 创建时间
+    /// </summary>
+    public DateTime CreatedAt { get; set; }
+    
+    /// <summary>
+    /// 过期时间
+    /// </summary>
+    public DateTime? ExpiresAt { get; set; }
+    
+    /// <summary>
+    /// 最后使用时间
+    /// </summary>
+    public DateTime? LastUsedAt { get; set; }
+}

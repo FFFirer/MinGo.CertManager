@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using MinGo.CertManager.Core.Constants;
 using MinGo.CertManager.Core.Entities;
+using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,15 +17,11 @@ using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 using MinGo.CertManager.Infrastructure.Configuration;
 
-namespace MinGo.CertManager.Infrastructure.Services;
+namespace MinGo.CertManager.Application.Services;
 
-public interface ICertificateService
-{
-    Task<Certificate> RequestCertificateAsync(string domain, bool isWildcard, DnsProvider dnsProvider, bool useStaging = false);
-    Task<Certificate> RenewCertificateAsync(Guid certificateId);
-    Task<byte[]> ExportCertificateAsync(Guid certificateId, CertificateFormat format, string? password = null);
-}
-
+/// <summary>
+/// 证书服务实现
+/// </summary>
 public class CertificateService : ICertificateService
 {
     private readonly ICertificateRepository _certificateRepository;
@@ -60,6 +57,7 @@ public class CertificateService : ICertificateService
             Id = Guid.NewGuid(),
             Domain = domain,
             IsWildcard = isWildcard,
+            UseStaging = useStaging,
             Status = CertificateStatus.Pending,
             AcmeStatus = AcmeProcessStatus.Initializing,
             CreatedAt = DateTime.UtcNow,
@@ -119,7 +117,7 @@ public class CertificateService : ICertificateService
             existingCertificate.Domain, existingCertificate.IsWildcard, existingCertificate.Status);
 
         var dnsProvider = await GetDefaultDnsProvider();
-        return await RequestCertificateAsync(existingCertificate.Domain, existingCertificate.IsWildcard, dnsProvider, false);
+        return await RequestCertificateAsync(existingCertificate.Domain, existingCertificate.IsWildcard, dnsProvider, existingCertificate.UseStaging);
     }
 
     public async Task<byte[]> ExportCertificateAsync(Guid certificateId, CertificateFormat format, string? password = null)

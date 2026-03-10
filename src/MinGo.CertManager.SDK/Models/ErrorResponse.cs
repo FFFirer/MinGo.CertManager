@@ -8,5 +8,5 @@ public class ErrorResponse
     public bool Success { get; set; }
 
     [JsonPropertyName("Error")]
-    public string Error { get; set; }
+    public required string Error { get; set; }
 }

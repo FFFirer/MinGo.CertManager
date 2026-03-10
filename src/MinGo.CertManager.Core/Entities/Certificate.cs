@@ -7,6 +7,7 @@ public class Certificate
     public Guid Id { get; set; }
     public string Domain { get; set; } = string.Empty;
     public bool IsWildcard { get; set; }
+    public bool UseStaging { get; set; }
     public CertificateStatus Status { get; set; }
     public AcmeProcessStatus AcmeStatus { get; set; }
     public string? AcmeStatusMessage { get; set; }

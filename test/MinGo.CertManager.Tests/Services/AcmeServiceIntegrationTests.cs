@@ -1,15 +1,17 @@
 using System;
 using System.Threading.Tasks;
-using Certes;
-using Certes.Acme;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MinGo.CertManager.Core.Constants;
 using MinGo.CertManager.Core.Entities;
+using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Configuration;
 using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Services;
+using MinGo.CertManager.Application.Services;
+using Certes;
+using Certes.Acme;
 using Moq;
 using Xunit;
 

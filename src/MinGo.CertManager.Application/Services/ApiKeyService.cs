@@ -1,9 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 using MinGo.CertManager.Core.Entities;
+using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Repositories;
 
-namespace MinGo.CertManager.Infrastructure.Services;
+namespace MinGo.CertManager.Application.Services;
 
 /// <summary>
 /// API Key服务实现
