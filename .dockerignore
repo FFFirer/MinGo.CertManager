@@ -14,8 +14,8 @@
 .idea
 
 # 测试文件和目录
-**/test
-**/tests
+# **/test
+# **/tests
 
 # 文档目录
 docs
