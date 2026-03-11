@@ -36,7 +36,8 @@ jobs:
             echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
           else
             COMMIT_SHA=$(git rev-parse --short HEAD)
-            echo "VERSION=dev-${COMMIT_SHA}" >> $GITHUB_ENV
+            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+            echo "VERSION=dev-${COMMIT_SHA}-${TIMESTAMP}" >> $GITHUB_ENV
           fi
 
       - name: Build and push Docker image
