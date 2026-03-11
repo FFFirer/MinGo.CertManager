@@ -31,13 +31,19 @@ jobs:
 
       - name: Extract version from tag
         id: extract_version
-        run: echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+          else
+            COMMIT_SHA=$(git rev-parse --short HEAD)
+            echo "VERSION=dev-${COMMIT_SHA}" >> $GITHUB_ENV
+          fi
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name == 'release' }}
+          push: true
           tags: |
             ${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
             ${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
