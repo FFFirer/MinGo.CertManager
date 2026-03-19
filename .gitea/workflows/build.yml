@@ -16,6 +16,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check env
+        id: check_env
+        run: |
+          echo $HTTP_PROXY
+          echo $HTTPS_PROXY
+
       - name: Checkout code
         uses: actions/checkout@v4
 
