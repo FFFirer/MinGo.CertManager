@@ -1,6 +1,8 @@
 # 构建输出目录
 **/bin
 **/obj
+**/node_modules
+**/logs
 
 # 前端依赖目录
 **/node_modules
