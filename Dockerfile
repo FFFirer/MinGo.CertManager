@@ -2,7 +2,16 @@
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS frontend-build
 
 # 安装 pnpm
-RUN npm install -g pnpm
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN npm install -g corepack@latest
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm config set registry https://registry.npmmirror.com
 
 # 设置工作目录
 WORKDIR /app
@@ -20,7 +29,11 @@ COPY src/MinGo.CertManager.Web .
 RUN pnpm run build
 
 # 第二阶段：构建 .NET 应用
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build-base
+
+RUN dotnet tool install -g dotnet-ef --version 10.0.4
+
+FROM backend-build-base AS backend-build
 
 # 设置工作目录
 WORKDIR /app
@@ -32,7 +45,6 @@ COPY src/MinGo.CertManager.Application/MinGo.CertManager.Application.csproj src/
 COPY src/MinGo.CertManager.Core/MinGo.CertManager.Core.csproj src/MinGo.CertManager.Core/
 COPY src/MinGo.CertManager.Infrastructure/MinGo.CertManager.Infrastructure.csproj src/MinGo.CertManager.Infrastructure/
 
-RUN ls
 # 还原 nuget 包（使用缓存）
 RUN dotnet restore
 
@@ -44,6 +56,12 @@ RUN dotnet build --configuration Release
 
 # 发布 Web 站点
 RUN dotnet publish src/MinGo.CertManager.Web --configuration Release --no-build --output /app/publish
+
+# 发布efbundle
+WORKDIR /app/src/MinGo.CertManager.Infrastructure
+ENV PATH="$PATH:/root/.dotnet/tools"
+RUN dotnet tool list
+RUN dotnet ef migrations bundle --configuration Release --output /app/publish/efbundle -f
 
 # 第三阶段：发布
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
@@ -58,12 +76,6 @@ COPY --from=frontend-build /app/wwwroot ./wwwroot
 
 # 创建数据目录
 RUN mkdir -p /app/data
-
-# 暴露端口
-EXPOSE 8080
-
-# 设置环境变量
-ENV ASPNETCORE_URLS=http://+:8080
 
 # 运行应用
 ENTRYPOINT ["dotnet", "MinGo.CertManager.Web.dll"]
