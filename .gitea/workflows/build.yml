@@ -9,7 +9,7 @@ env:
   CONTAINER_REGISTRY: ${{ vars.DOCKER_REGISTRY }}
   CONTAINER_REGISTRY_USERNAME: ${{ vars.DOCKER_USERNAME }}
   CONTAINER_REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-  IMAGE_NAME: mingo/certmanager
+  IMAGE_NAME: 1mingo/certmanager
 
 jobs:
   build:
