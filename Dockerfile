@@ -44,6 +44,9 @@ COPY src/MinGo.CertManager.Web/MinGo.CertManager.Web.csproj src/MinGo.CertManage
 COPY src/MinGo.CertManager.Application/MinGo.CertManager.Application.csproj src/MinGo.CertManager.Application/
 COPY src/MinGo.CertManager.Core/MinGo.CertManager.Core.csproj src/MinGo.CertManager.Core/
 COPY src/MinGo.CertManager.Infrastructure/MinGo.CertManager.Infrastructure.csproj src/MinGo.CertManager.Infrastructure/
+COPY src/MinGo.CertManager.SDK/MinGo.CertManager.SDK.csproj src/MinGo.CertManager.SDK/
+COPY test/MinGo.CertManager.SDK.Tests/MinGo.CertManager.SDK.Tests.csproj test/MinGo.CertManager.SDK.Tests/
+COPY test/MinGo.CertManager.Tests/MinGo.CertManager.Tests.csproj test/MinGo.CertManager.Tests/
 
 # 还原 nuget 包（使用缓存）
 RUN dotnet restore
@@ -60,8 +63,8 @@ RUN dotnet publish src/MinGo.CertManager.Web --configuration Release --no-build 
 # 发布efbundle
 WORKDIR /app/src/MinGo.CertManager.Infrastructure
 ENV PATH="$PATH:/root/.dotnet/tools"
-RUN dotnet tool list
-RUN dotnet ef migrations bundle --configuration Release --output /app/publish/efbundle -f
+RUN dotnet tool list -g
+RUN dotnet ef migrations bundle --configuration Release --no-build --output /app/publish/efbundle -f
 
 # 第三阶段：发布
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
