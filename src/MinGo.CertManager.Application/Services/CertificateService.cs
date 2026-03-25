@@ -220,7 +220,6 @@ public class CertificateService : ICertificateService
             keyWriter.Write(privateKey);
         }
         
-        zipArchive.Dispose();
         return memoryStream.ToArray();
     }
 
