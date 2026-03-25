@@ -12,6 +12,16 @@ RUN npm install -g corepack@latest
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm config set registry https://registry.npmmirror.com
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN npm install -g corepack@latest
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm config set registry https://registry.npmmirror.com
 
 # 设置工作目录
 WORKDIR /app
@@ -29,7 +39,11 @@ COPY src/MinGo.CertManager.Web .
 RUN pnpm run build
 
 # 第二阶段：构建 .NET 应用
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build-base
+
+RUN dotnet tool install -g dotnet-ef --version 10.0.4
+
+FROM backend-build-base AS backend-build
 
 # 设置工作目录
 WORKDIR /app
@@ -44,7 +58,6 @@ COPY src/MinGo.CertManager.SDK/MinGo.CertManager.SDK.csproj src/MinGo.CertManage
 COPY test/MinGo.CertManager.SDK.Tests/MinGo.CertManager.SDK.Tests.csproj test/MinGo.CertManager.SDK.Tests/
 COPY test/MinGo.CertManager.Tests/MinGo.CertManager.Tests.csproj test/MinGo.CertManager.Tests/
 
-RUN pwd
 # 还原 nuget 包（使用缓存）
 RUN ls 
 RUN dotnet restore
@@ -52,14 +65,17 @@ RUN dotnet restore
 # 复制全部项目文件
 COPY . .
 
-# 复制 node 构建镜像中生成的 tailwindcss 相关文件
-COPY --from=frontend-build /app/wwwroot ./src/MinGo.CertManager.Web/wwwroot
-
 # 使用 Release 编译项目
 RUN dotnet build --configuration Release
 
 # 发布 Web 站点
 RUN dotnet publish src/MinGo.CertManager.Web --configuration Release --no-build --output /app/publish
+
+# 发布efbundle
+WORKDIR /app/src/MinGo.CertManager.Infrastructure
+ENV PATH="$PATH:/root/.dotnet/tools"
+RUN dotnet tool list -g
+RUN dotnet ef migrations bundle --configuration Release --no-build --output /app/publish/efbundle -f
 
 # 第三阶段：发布
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
@@ -69,15 +85,11 @@ WORKDIR /app
 
 # 复制发布文件
 COPY --from=backend-build /app/publish .
+# 复制 node 构建镜像中生成的 tailwindcss 相关文件
+COPY --from=frontend-build /app/wwwroot ./wwwroot
 
 # 创建数据目录
 RUN mkdir -p /app/data
-
-# 暴露端口
-EXPOSE 8080
-
-# 设置环境变量
-ENV ASPNETCORE_URLS=http://+:8080
 
 # 运行应用
 ENTRYPOINT ["dotnet", "MinGo.CertManager.Web.dll"]
