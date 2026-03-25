@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Threading.Tasks;
 using MinGo.CertManager.Core.Constants;
@@ -143,7 +144,7 @@ public class CertificateService : ICertificateService
             {
                 CertificateFormat.Pfx => ExportToPfx(certificate.CertificateContent, certificate.PrivateKey, password),
                 CertificateFormat.Pem => ExportToPem(certificate.CertificateContent, certificate.PrivateKey),
-                CertificateFormat.Crt => ExportToCrt(certificate.CertificateContent),
+                CertificateFormat.Crt => ExportToCrt(certificate.CertificateContent, certificate.PrivateKey),
                 _ => throw new ArgumentException("Unsupported format", nameof(format))
             };
 
@@ -198,9 +199,28 @@ public class CertificateService : ICertificateService
         return Encoding.UTF8.GetBytes(pem);
     }
 
-    private byte[] ExportToCrt(string certContent)
+    private byte[] ExportToCrt(string certContent, string privateKey)
     {
-        return Encoding.UTF8.GetBytes(certContent);
+        using var memoryStream = new MemoryStream();
+        using var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true);
+        
+        // 添加证书文件
+        var certEntry = zipArchive.CreateEntry("certificate.crt");
+        using (var certStream = certEntry.Open())
+        using (var certWriter = new StreamWriter(certStream))
+        {
+            certWriter.Write(certContent);
+        }
+        
+        // 添加私钥文件
+        var keyEntry = zipArchive.CreateEntry("private.key");
+        using (var keyStream = keyEntry.Open())
+        using (var keyWriter = new StreamWriter(keyStream))
+        {
+            keyWriter.Write(privateKey);
+        }
+        
+        return memoryStream.ToArray();
     }
 
     private async Task<DnsProvider> GetDefaultDnsProvider()

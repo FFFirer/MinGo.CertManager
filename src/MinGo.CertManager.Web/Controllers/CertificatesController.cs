@@ -28,11 +28,11 @@ public class CertificatesController : ControllerBase
             {
                 CertificateFormat.Pfx => "application/x-pkcs12",
                 CertificateFormat.Pem => "application/x-pem-file",
-                CertificateFormat.Crt => "application/x-x509-ca-cert",
+                CertificateFormat.Crt => "application/zip",
                 _ => "application/octet-stream"
             };
 
-            var fileExtension = format.ToString().ToLower();
+            var fileExtension = format == CertificateFormat.Crt ? "zip" : format.ToString().ToLower();
             var fileName = $"certificate.{fileExtension}";
 
             return File(certificateData, contentType, fileName);

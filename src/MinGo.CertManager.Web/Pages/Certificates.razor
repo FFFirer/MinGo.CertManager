@@ -246,7 +246,8 @@
                 url += $"&password={Uri.EscapeDataString(password)}";
             }
 
-            var fileName = $"{certificate.Domain}.{certFormat.ToString().ToLower()}";
+            var fileExtension = certFormat == CertificateFormat.Crt ? "zip" : certFormat.ToString().ToLower();
+            var fileName = $"{certificate.Domain}.{fileExtension}";
             await JS.InvokeVoidAsync("downloadFile", new object[] { url, fileName });
         }
         catch (Exception ex)
