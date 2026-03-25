@@ -12,6 +12,16 @@ RUN npm install -g corepack@latest
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm config set registry https://registry.npmmirror.com
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN npm install -g corepack@latest
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm config set registry https://registry.npmmirror.com
 
 # 设置工作目录
 WORKDIR /app
@@ -49,6 +59,7 @@ COPY test/MinGo.CertManager.SDK.Tests/MinGo.CertManager.SDK.Tests.csproj test/Mi
 COPY test/MinGo.CertManager.Tests/MinGo.CertManager.Tests.csproj test/MinGo.CertManager.Tests/
 
 # 还原 nuget 包（使用缓存）
+RUN ls 
 RUN dotnet restore
 
 # 复制全部项目文件
