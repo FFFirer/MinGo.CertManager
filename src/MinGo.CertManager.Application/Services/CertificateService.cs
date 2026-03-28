@@ -202,24 +202,25 @@ public class CertificateService : ICertificateService
     private byte[] ExportToCrt(string certContent, string privateKey)
     {
         using var memoryStream = new MemoryStream();
-        using var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true);
-        
-        // 添加证书文件
-        var certEntry = zipArchive.CreateEntry("certificate.crt");
-        using (var certStream = certEntry.Open())
-        using (var certWriter = new StreamWriter(certStream))
+        using (var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
         {
-            certWriter.Write(certContent);
+            // 添加证书文件
+            var certEntry = zipArchive.CreateEntry("certificate.crt");
+            using (var certStream = certEntry.Open())
+            using (var certWriter = new StreamWriter(certStream))
+            {
+                certWriter.Write(certContent);
+            }
+
+            // 添加私钥文件
+            var keyEntry = zipArchive.CreateEntry("private.key");
+            using (var keyStream = keyEntry.Open())
+            using (var keyWriter = new StreamWriter(keyStream))
+            {
+                keyWriter.Write(privateKey);
+            }
         }
-        
-        // 添加私钥文件
-        var keyEntry = zipArchive.CreateEntry("private.key");
-        using (var keyStream = keyEntry.Open())
-        using (var keyWriter = new StreamWriter(keyStream))
-        {
-            keyWriter.Write(privateKey);
-        }
-        
+
         return memoryStream.ToArray();
     }
 
