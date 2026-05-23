@@ -71,11 +71,9 @@ public class CertificateService : ICertificateService
         {
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingAccount, "创建ACME账户");
 
-            var dnsService = _aliyunDnsService;
-
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingOrder, "创建ACME订单");
 
-            var certificateResult = await _acmeService.RequestCertificateAsync(domain, isWildcard, dnsService, useStaging);
+            var certificateResult = await _acmeService.RequestCertificateAsync(domain, isWildcard, _aliyunDnsService, useStaging);
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.Completed, "证书申请完成");
 
@@ -83,7 +81,8 @@ public class CertificateService : ICertificateService
             certificate.PrivateKey = certificateResult.PrivateKeyPem;
             certificate.CertificateChain = certificateResult.CertificateChainPem;
             certificate.IssuedAt = DateTime.UtcNow;
-            certificate.ExpiresAt = DateTime.UtcNow.AddDays(_certificateSettings.ValidityDays);
+            certificate.ExpiresAt = ParseExpiryDate(certificateResult.CertificatePem)
+                ?? DateTime.UtcNow.AddDays(_certificateSettings.ValidityDays);
             certificate.Status = CertificateStatus.Active;
             certificate.UpdatedAt = DateTime.UtcNow;
 
@@ -222,6 +221,24 @@ public class CertificateService : ICertificateService
         }
 
         return memoryStream.ToArray();
+    }
+
+    /// <summary>
+    /// 从 PEM 格式证书内容解析过期时间。
+    /// 解析失败时返回 null，由调用方决定回退策略。
+    /// </summary>
+    private static DateTime? ParseExpiryDate(string certPem)
+    {
+        try
+        {
+            var certParser = new X509CertificateParser();
+            var cert = certParser.ReadCertificate(Encoding.ASCII.GetBytes(certPem));
+            return cert.NotAfter.ToUniversalTime();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private async Task<DnsProvider> GetDefaultDnsProvider()
