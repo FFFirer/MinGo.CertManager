@@ -6,6 +6,7 @@ using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Services;
 using MinGo.CertManager.Infrastructure.Repositories;
 using MinGo.CertManager.Application.Services;
+using MinGo.CertManager.Infrastructure.Jobs;
 using MinGo.CertManager.Web.Extensions;
 using MinGo.CertManager.Web.Middleware;
 using Quartz;
@@ -47,7 +48,6 @@ builder.Services.AddScoped<ICertificateRepository, CertificateRepository>();
 builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
-builder.Services.AddScoped<IDnsValidationService, AliyunDnsValidationService>();
 builder.Services.AddScoped<IAcmeService, AcmeService>();
 builder.Services.AddScoped<IAcmeAccountCache, AcmeAccountCache>();
 builder.Services.AddScoped<IAliyunDnsService, AliyunDnsService>();
@@ -71,6 +71,21 @@ builder.Services.AddQuartz(q =>
     q.SchedulerName = quartzSettings?.SchedulerName ?? "MinGo CertManager Scheduler";
     q.UseSimpleTypeLoader();
     q.UseInMemoryStore();
+
+    var certificateJobKey = new JobKey("CertificateRenewalJob");
+    q.AddJob<CertificateRenewalJob>(certificateJobKey, job =>
+    {
+        job.WithDescription("扫描并续签即将过期的证书");
+    });
+
+    q.AddTrigger(trigger => trigger
+        .ForJob(certificateJobKey)
+        .WithIdentity("CertificateRenewalTrigger")
+        .WithDescription("每日执行一次证书续签扫描")
+        .StartNow()
+        .WithSimpleSchedule(schedule => schedule
+            .WithIntervalInHours(24)
+            .RepeatForever()));
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
