@@ -189,7 +189,7 @@
         }
     }
 
-    private void OnFilterStatusChange(ChangeEventArgs e)
+    private async Task OnFilterStatusChange(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
         filterStatus = value switch
@@ -201,13 +201,13 @@
             "Failed" => CertificateStatus.Failed,
             _ => null
         };
-        _ = LoadCertificates();
+        await LoadCertificates();
     }
 
-    private void OnSearchDomainChange(ChangeEventArgs e)
+    private async Task OnSearchDomainChange(ChangeEventArgs e)
     {
         searchDomain = e.Value?.ToString() ?? string.Empty;
-        _ = LoadCertificates();
+        await LoadCertificates();
     }
 
     private void NavigateToApply()

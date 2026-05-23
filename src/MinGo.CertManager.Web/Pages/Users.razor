@@ -54,10 +54,10 @@
 
 @code {
     [Inject]
-    private UserManager<ApplicationUser> UserManager { get; set; }
+    private UserManager<ApplicationUser> UserManager { get; set; } = null!;
 
     [Inject]
-    private RoleManager<IdentityRole> RoleManager { get; set; }
+    private RoleManager<IdentityRole> RoleManager { get; set; } = null!;
 
     private List<ApplicationUser> users = new();
     private Dictionary<string, string> userRoles = new();
