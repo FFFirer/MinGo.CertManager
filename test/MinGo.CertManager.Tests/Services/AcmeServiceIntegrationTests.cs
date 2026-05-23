@@ -49,6 +49,7 @@ public class AcmeServiceIntegrationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task RequestCertificateAsync_WithValidDomain_ShouldCreateDnsRecord()
     {
         var domain = "test-example.com";
@@ -72,31 +73,23 @@ public class AcmeServiceIntegrationTests
             _acmeSettings,
             _accountCacheMock.Object);
 
-        try
-        {
-            var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
+        var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
 
-            Assert.NotNull(result);
-            Assert.NotEmpty(result.CertificatePem);
-            Assert.NotEmpty(result.PrivateKeyPem);
-            Assert.NotEmpty(result.CertificateChainPem);
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.CertificatePem);
+        Assert.NotEmpty(result.PrivateKeyPem);
+        Assert.NotEmpty(result.CertificateChainPem);
 
-            _dnsServiceMock.Verify(
-                x => x.CreateTxtRecordAsync(
-                    It.Is<string>(d => d == domain),
-                    It.Is<string>(r => r == $"_acme-challenge.{domain}"),
-                    It.IsAny<string>()),
-                Times.Once);
-        }
-        catch (Exception ex)
-        {
-            _loggerMock.Object.LogError(ex, "测试失败: {Message}", ex.Message);
-            // 记录错误但不抛出，因为集成测试可能因外部因素失败
-            // 重点验证流程是否正确执行
-        }
+        _dnsServiceMock.Verify(
+            x => x.CreateTxtRecordAsync(
+                It.Is<string>(d => d == domain),
+                It.Is<string>(r => r == $"_acme-challenge.{domain}"),
+                It.IsAny<string>()),
+            Times.Once);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task RequestCertificateAsync_WithWildcardDomain_ShouldCreateDnsRecordForBaseDomain()
     {
         var domain = "test-example.com";
@@ -120,30 +113,23 @@ public class AcmeServiceIntegrationTests
             _acmeSettings,
             _accountCacheMock.Object);
 
-        try
-        {
-            var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
+        var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
 
-            Assert.NotNull(result);
-            Assert.NotEmpty(result.CertificatePem);
-            Assert.NotEmpty(result.PrivateKeyPem);
-            Assert.NotEmpty(result.CertificateChainPem);
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.CertificatePem);
+        Assert.NotEmpty(result.PrivateKeyPem);
+        Assert.NotEmpty(result.CertificateChainPem);
 
-            _dnsServiceMock.Verify(
-                x => x.CreateTxtRecordAsync(
-                    It.Is<string>(d => d == domain),
-                    It.Is<string>(r => r == $"_acme-challenge.{domain}"),
-                    It.IsAny<string>()),
-                Times.Once);
-        }
-        catch (Exception ex)
-        {
-            _loggerMock.Object.LogError(ex, "测试失败: {Message}", ex.Message);
-            // 记录错误但不抛出
-        }
+        _dnsServiceMock.Verify(
+            x => x.CreateTxtRecordAsync(
+                It.Is<string>(d => d == domain),
+                It.Is<string>(r => r == $"_acme-challenge.{domain}"),
+                It.IsAny<string>()),
+            Times.Once);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task RequestCertificateAsync_WithCachedAccount_ShouldUseCachedAccount()
     {
         var domain = "test-example.com";
@@ -183,28 +169,21 @@ public class AcmeServiceIntegrationTests
             _acmeSettings,
             _accountCacheMock.Object);
 
-        try
-        {
-            var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
+        var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
 
-            Assert.NotNull(result);
+        Assert.NotNull(result);
 
-            _accountCacheMock.Verify(
-                x => x.GetCachedAccountAsync(It.IsAny<string>(), It.IsAny<string>()),
-                Times.Once);
+        _accountCacheMock.Verify(
+            x => x.GetCachedAccountAsync(It.IsAny<string>(), It.IsAny<string>()),
+            Times.Once);
 
-            _accountCacheMock.Verify(
-                x => x.UpdateLastUsedAsync(It.IsAny<Guid>()),
-                Times.Once);
-        }
-        catch (Exception ex)
-        {
-            _loggerMock.Object.LogError(ex, "测试失败: {Message}", ex.Message);
-            // 记录错误但不抛出
-        }
+        _accountCacheMock.Verify(
+            x => x.UpdateLastUsedAsync(It.IsAny<Guid>()),
+            Times.Once);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task RequestCertificateAsync_WhenDnsRecordCreationFails_ShouldHandleException()
     {
         var domain = "test-example.com";
@@ -228,21 +207,14 @@ public class AcmeServiceIntegrationTests
             _acmeSettings,
             _accountCacheMock.Object);
 
-        try
-        {
-            var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
-            
-            // 应该返回失败结果或抛出异常
-            Assert.Null(result);
-        }
-        catch (Exception ex)
-        {
-            _loggerMock.Object.LogError(ex, "预期的异常: {Message}", ex.Message);
-            // 预期的异常，测试通过
-        }
+        var ex = await Assert.ThrowsAsync<Exception>(() =>
+            acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging));
+
+        Assert.Contains("DNS record creation failed", ex.Message);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task RequestCertificateAsync_WhenDnsRecordDeletionFails_ShouldContinueExecution()
     {
         var domain = "test-example.com";
@@ -266,18 +238,12 @@ public class AcmeServiceIntegrationTests
             _acmeSettings,
             _accountCacheMock.Object);
 
-        try
-        {
-            var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
-            
-            // 即使删除失败，也应该尝试完成证书申请
-            // 重点验证错误处理是否正确
-        }
-        catch (Exception ex)
-        {
-            _loggerMock.Object.LogError(ex, "测试失败: {Message}", ex.Message);
-            // 记录错误但不抛出
-        }
+        _dnsServiceMock.Setup(x => x.ClearTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
+
+        Assert.NotNull(result);
     }
 
     [Fact]
