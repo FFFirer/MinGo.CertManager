@@ -82,15 +82,13 @@
                                 <div>
                                     <div class="flex items-center">
                                         <label class="text-sm text-muted-foreground mr-2">API Key:</label>
-                                        <input type="text" value="@item.ApiKey" class="input flex-1" readonly />
-                                        <button @onclick="() => CopyToClipboard(item.ApiKey)" class="btn btn-secondary ml-2">复制</button>
+                                        <input type="text" value="@item.ApiKeyMask" class="input flex-1" readonly />
                                     </div>
                                 </div>
                                 <div>
                                     <div class="flex items-center">
                                         <label class="text-sm text-muted-foreground mr-2">API Secret:</label>
-                                        <input type="text" value="@item.ApiSecret" class="input flex-1" readonly />
-                                        <button @onclick="() => CopyToClipboard(item.ApiSecret)" class="btn btn-secondary ml-2">复制</button>
+                                        <span class="text-muted-foreground">创建时已展示，不再保存明文</span>
                                     </div>
                                 </div>
 

@@ -41,13 +41,11 @@ public class ApiKeyService : IApiKeyService
         var apiKeyHash = ComputeHash(apiKey);
         var apiSecretHash = ComputeHash(apiSecret);
 
-        // 创建API Key实体
+        // 创建API Key实体（仅存储哈希值，不存储明文）
         var apiKeyEntity = new ApiKey
         {
             AppId = appId,
-            ApiKeyString = apiKey,
             ApiKeyHash = apiKeyHash,
-            ApiSecretString = apiSecret,
             ApiSecretHash = apiSecretHash,
             Status = 1, // 1=正常
             IpWhitelist = ipWhitelist,
@@ -65,45 +63,67 @@ public class ApiKeyService : IApiKeyService
     }
 
     /// <summary>
-    /// 验证API Key
+    /// 验证API Key（仅校验 Key 是否存在且有效）
     /// </summary>
     /// <param name="apiKey">API Key</param>
-    /// <param name="apiSecret">API Secret</param>
     /// <returns>验证结果</returns>
-    public async Task<bool> ValidateApiKeyAsync(string apiKey, string apiSecret)
+    public async Task<bool> ValidateApiKeyAsync(string apiKey)
     {
-        // 计算哈希值
         var apiKeyHash = ComputeHash(apiKey);
-        var apiSecretHash = ComputeHash(apiSecret);
 
-        // 查询API Key
         var apiKeyEntity = await _apiKeyRepository.GetByApiKeyHashAsync(apiKeyHash);
         if (apiKeyEntity == null)
         {
             return false;
         }
 
-        // 检查状态
         if (apiKeyEntity.Status != 1)
         {
             return false;
         }
 
-        // 检查过期时间
         if (apiKeyEntity.ExpiresAt.HasValue && apiKeyEntity.ExpiresAt.Value < DateTime.UtcNow)
         {
             return false;
         }
 
-        // 检查Secret哈希
+        await _apiKeyRepository.UpdateLastUsedAsync(apiKeyEntity.Id);
+        return true;
+    }
+
+    /// <summary>
+    /// 验证API Key和Secret（完整校验，预留用于HMAC签名阶段）
+    /// </summary>
+    /// <param name="apiKey">API Key</param>
+    /// <param name="apiSecret">API Secret</param>
+    /// <returns>验证结果</returns>
+    public async Task<bool> ValidateApiKeyAsync(string apiKey, string apiSecret)
+    {
+        var apiKeyHash = ComputeHash(apiKey);
+        var apiSecretHash = ComputeHash(apiSecret);
+
+        var apiKeyEntity = await _apiKeyRepository.GetByApiKeyHashAsync(apiKeyHash);
+        if (apiKeyEntity == null)
+        {
+            return false;
+        }
+
+        if (apiKeyEntity.Status != 1)
+        {
+            return false;
+        }
+
+        if (apiKeyEntity.ExpiresAt.HasValue && apiKeyEntity.ExpiresAt.Value < DateTime.UtcNow)
+        {
+            return false;
+        }
+
         if (apiKeyEntity.ApiSecretHash != apiSecretHash)
         {
             return false;
         }
 
-        // 更新最后使用时间
         await _apiKeyRepository.UpdateLastUsedAsync(apiKeyEntity.Id);
-
         return true;
     }
 
@@ -119,8 +139,6 @@ public class ApiKeyService : IApiKeyService
             Id = key.Id,
             AppId = key.AppId,
             ApiKeyMask = MaskApiKey(key.ApiKeyHash),
-            ApiKey = key.ApiKeyString,
-            ApiSecret = key.ApiSecretString,
             Description = key.Description,
             Status = key.Status,
             IpWhitelist = key.IpWhitelist,

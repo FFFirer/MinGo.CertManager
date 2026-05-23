@@ -17,7 +17,14 @@ public interface IApiKeyService
     Task<(string ApiKey, string ApiSecret, long Id)> CreateApiKeyAsync(long appId, string description, DateTime? expiresAt = null, string? ipWhitelist = null, int rateLimitQpm = 1000);
     
     /// <summary>
-    /// 验证API Key
+    /// 验证API Key（仅校验 Key 是否存在且有效）
+    /// </summary>
+    /// <param name="apiKey">API Key</param>
+    /// <returns>验证结果</returns>
+    Task<bool> ValidateApiKeyAsync(string apiKey);
+
+    /// <summary>
+    /// 验证API Key和Secret（完整校验，预留用于HMAC签名阶段）
     /// </summary>
     /// <param name="apiKey">API Key</param>
     /// <param name="apiSecret">API Secret</param>
@@ -68,19 +75,9 @@ public class ApiKeyInfo
     public long AppId { get; set; }
     
     /// <summary>
-    /// API Key（掩码）
+    /// API Key掩码（仅显示后8位）
     /// </summary>
     public string ApiKeyMask { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// API Key（完整）
-    /// </summary>
-    public string ApiKey { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// API Secret（完整）
-    /// </summary>
-    public string ApiSecret { get; set; } = string.Empty;
     
     /// <summary>
     /// 描述
