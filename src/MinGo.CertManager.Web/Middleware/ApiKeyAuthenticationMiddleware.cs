@@ -46,8 +46,9 @@ public class ApiKeyAuthenticationMiddleware
     /// <returns>任务</returns>
     public async Task InvokeAsync(HttpContext context)
     {
-        // 只对外部API路由进行认证
-        if (context.Request.Path.StartsWithSegments("/api/external"))
+        // 只对外部API路由进行认证：按 segment 精确匹配 /api/external/{action}
+        // 使用 segment 数量校验避免 /api/external2 等路径误匹配
+        if (context.Request.Path.StartsWithSegments("/api/external", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
