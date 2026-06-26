@@ -1,17 +1,7 @@
 # 第一阶段：构建前端
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS frontend-build
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-alpine AS frontend-build
 
 # 安装 pnpm
-ARG NPM_REGISTRY=https://registry.npmjs.org/
-
-ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-
-RUN npm install -g corepack@latest
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm config set registry https://registry.npmmirror.com
 ARG NPM_REGISTRY=https://registry.npmjs.org/
 
 ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
