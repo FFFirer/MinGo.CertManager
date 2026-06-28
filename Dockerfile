@@ -75,7 +75,7 @@ WORKDIR /app
 # 复制发布文件
 COPY --from=backend-build /app/publish .
 # 复制 node 构建镜像中生成的 tailwindcss 相关文件
-COPY --from=frontend-build /app/wwwroot ./wwwroot
+COPY --from=frontend-build /app/src/MinGo.CertManager.Web/wwwroot ./wwwroot
 
 # 创建数据目录
 RUN mkdir -p /app/data
