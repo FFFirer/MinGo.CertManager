@@ -25,7 +25,7 @@ RUN pnpm install --frozen-lockfile
 COPY src/MinGo.CertManager.Web src/MinGo.CertManager.Web
 
 # 构建 tailwindcss 到 wwwroot 目录
-RUN pnpm --filter mingo.certmanager.web run build
+RUN pnpm --filter mingo.certmanager.web exec -- vite build --outDir=/app/wwwroot
 
 # 第二阶段：构建 .NET 应用
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build-base
@@ -75,7 +75,7 @@ WORKDIR /app
 # 复制发布文件
 COPY --from=backend-build /app/publish .
 # 复制 node 构建镜像中生成的 tailwindcss 相关文件
-COPY --from=frontend-build /app/src/MinGo.CertManager.Web/wwwroot ./wwwroot
+COPY --from=frontend-build /app/wwwroot ./wwwroot
 
 # 创建数据目录
 RUN mkdir -p /app/data
