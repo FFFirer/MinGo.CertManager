@@ -1,0 +1,6 @@
+packages:
+  - 'src/MinGo.CertManager.Web'
+
+# pnpm v11: allowBuilds replaces onlyBuiltDependencies/neverBuiltDependencies/ignoredBuiltDependencies
+allowBuilds:
+  esbuild: true

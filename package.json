@@ -1,0 +1,12 @@
+{
+  "name": "mingo.certmanager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "基于 .NET 10 的 HTTPS 证书管理系统 - 前端工作区",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --filter mingo.certmanager.web dev",
+    "build": "pnpm --filter mingo.certmanager.web build",
+    "watch:css": "pnpm --filter mingo.certmanager.web watch:css"
+  }
+}
