@@ -1,0 +1,3 @@
+# 单项目配置（非 workspace）
+allowBuilds:
+  esbuild: true
