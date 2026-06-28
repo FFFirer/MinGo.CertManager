@@ -10,23 +10,22 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 RUN npm install -g corepack@latest
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm config set registry https://registry.npmmirror.com
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 
 # 设置工作目录
 WORKDIR /app
 
-# 复制 package.json 和 pnpm-lock.yaml 文件，用于缓存
-COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml .
+# 复制 pnpm 工作区配置文件（根级 package.json、workspace yaml、lockfile）
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
 # 还原 npm 包（使用缓存）
 RUN pnpm install --frozen-lockfile
 
-# 复制 Web 目录其余文件
-COPY src/MinGo.CertManager.Web .
+# 复制 Web 源码目录
+COPY src/MinGo.CertManager.Web src/MinGo.CertManager.Web
 
-# 构建 tailwindcss 脚本到 wwwroot 目录
-RUN pnpm run build
+# 构建 tailwindcss 到 wwwroot 目录
+RUN pnpm --filter mingo.certmanager.web run build
 
 # 第二阶段：构建 .NET 应用
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build-base
