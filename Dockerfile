@@ -1,5 +1,5 @@
 # 第一阶段：构建前端
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS frontend-build
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-alpine AS frontend-build
 
 # 安装 pnpm
 ARG NPM_REGISTRY=https://registry.npmjs.org/
@@ -37,7 +37,7 @@ COPY src/MinGo.CertManager.Web .
 
 # 构建 tailwindcss 脚本到 wwwroot 目录
 RUN pnpm run build
-
+a
 # 第二阶段：构建 .NET 应用
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build-base
 
@@ -59,7 +59,7 @@ COPY test/MinGo.CertManager.SDK.Tests/MinGo.CertManager.SDK.Tests.csproj test/Mi
 COPY test/MinGo.CertManager.Tests/MinGo.CertManager.Tests.csproj test/MinGo.CertManager.Tests/
 
 # 还原 nuget 包（使用缓存）
-RUN ls 
+RUN ls
 RUN dotnet restore
 
 # 复制全部项目文件
