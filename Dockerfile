@@ -16,7 +16,7 @@ RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 WORKDIR /app
 
 # 复制 package.json 和 pnpm-lock.yaml（依赖缓存）
-COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml ./
+COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml src/MinGo.CertManager.Web/pnpm-workspace.yaml ./
 
 # 还原 npm 包（使用缓存）
 RUN pnpm install --frozen-lockfile
