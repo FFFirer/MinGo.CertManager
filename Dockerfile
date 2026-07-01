@@ -1,5 +1,5 @@
 # 第一阶段：构建前端
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-alpine AS frontend-build
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS frontend-build
 
 # 安装 pnpm
 ARG NPM_REGISTRY=https://registry.npmjs.org/
@@ -10,13 +10,13 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 RUN npm install -g corepack@latest
 
-RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 # 设置工作目录
 WORKDIR /app
 
 # 复制 package.json 和 pnpm-lock.yaml（依赖缓存）
-COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml src/MinGo.CertManager.Web/pnpm-workspace.yaml ./
+COPY src/MinGo.CertManager.Web/package.json src/MinGo.CertManager.Web/pnpm-lock.yaml ./
 
 # 还原 npm 包（使用缓存）
 RUN pnpm install --frozen-lockfile
@@ -48,7 +48,7 @@ COPY test/MinGo.CertManager.SDK.Tests/MinGo.CertManager.SDK.Tests.csproj test/Mi
 COPY test/MinGo.CertManager.Tests/MinGo.CertManager.Tests.csproj test/MinGo.CertManager.Tests/
 
 # 还原 nuget 包（使用缓存）
-RUN ls 
+RUN ls
 RUN dotnet restore
 
 # 复制全部项目文件
