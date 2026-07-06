@@ -92,4 +92,9 @@ Thumbs.db
 
 # Demos
 demos/
+
+# pnpm v11
 node_modules/
+.pnpm-store/
+*.tsbuildinfo
+/src/MinGo.CertManager.Web/wwwroot

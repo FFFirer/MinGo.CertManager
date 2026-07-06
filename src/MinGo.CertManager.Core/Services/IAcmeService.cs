@@ -13,7 +13,7 @@ public interface IAcmeService
     /// <param name="dnsService">DNS服务</param>
     /// <param name="useStaging">是否使用测试环境</param>
     /// <returns>证书结果</returns>
-    Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, object dnsService, bool useStaging = false);
+    Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false);
     
     /// <summary>
     /// 清理资源
@@ -22,7 +22,7 @@ public interface IAcmeService
     /// <param name="isWildcard">是否通配符证书</param>
     /// <param name="dnsService">DNS服务</param>
     /// <returns>任务</returns>
-    Task CleanupAsync(string domain, bool isWildcard, object dnsService);
+    Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService);
 }
 
 /// <summary>

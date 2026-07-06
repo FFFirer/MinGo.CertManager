@@ -33,7 +33,7 @@ public class AcmeService : IAcmeService
         _accountCache = accountCache;
     }
 
-    public async Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, object dnsService, bool useStaging = false)
+    public async Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false)
     {
         _logger.LogInformation("开始ACME证书申请: Domain={Domain}, IsWildcard={IsWildcard}, Environment={Environment}",
             domain, isWildcard, useStaging ? "Staging" : "Production");
@@ -42,8 +42,6 @@ public class AcmeService : IAcmeService
         {
             var acmeUri = useStaging ? new Uri(_acmeSettings.LetsEncryptStagingUrl) : new Uri(_acmeSettings.LetsEncryptProductionUrl);
             _logger.LogInformation("连接到ACME服务器: {AcmeUri}", acmeUri);
-
-            _acmeContext = new AcmeContext(acmeUri);
 
             var accountEmail = string.IsNullOrEmpty(_acmeSettings.AccountEmail) ? AcmeConstants.DefaultAccountEmail : _acmeSettings.AccountEmail;
             var contact = $"mailto:{accountEmail}";
@@ -55,7 +53,8 @@ public class AcmeService : IAcmeService
                 _logger.LogInformation("使用缓存的ACME账号: AccountId={AccountId}", cachedAccount.AccountId);
 
                 _accountKey = KeyFactory.FromDer(Convert.FromBase64String(cachedAccount.AccountKey));
-                var account = await _acmeContext.NewAccount(new[] { contact }, true);
+                _acmeContext = new AcmeContext(acmeUri, _accountKey);
+                var account = await _acmeContext.Account();
 
                 await _accountCache.UpdateLastUsedAsync(cachedAccount.Id);
             }
@@ -63,8 +62,9 @@ public class AcmeService : IAcmeService
             {
                 _logger.LogInformation("创建新的ACME账户");
 
-                _accountKey = KeyFactory.NewKey(KeyAlgorithm.ES256);
+                _acmeContext = new AcmeContext(acmeUri);
                 var account = await _acmeContext.NewAccount(new[] { contact }, true);
+                _accountKey = _acmeContext.AccountKey;
 
                 _logger.LogInformation("账户创建成功: AccountId={AccountId}", account.Location);
 
@@ -101,7 +101,7 @@ public class AcmeService : IAcmeService
                 _authorizations[authDomain] = authorization;
                 _logger.LogInformation("处理授权: Domain={AuthDomain}", authDomain);
 
-                await HandleDnsChallengeAsync(authorization, (IAliyunDnsService)dnsService, authDomain);
+                await HandleDnsChallengeAsync(authorization, dnsService, authDomain);
             }
 
             _logger.LogInformation("等待所有授权验证完成");
@@ -132,6 +132,14 @@ public class AcmeService : IAcmeService
         catch (Exception ex)
         {
             _logger.LogError(ex, "ACME证书申请失败: Domain={Domain}", domain);
+            try
+            {
+                await CleanupAsync(domain, isWildcard, dnsService);
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.LogError(cleanupEx, "ACME资源清理失败: Domain={Domain}", domain);
+            }
             throw;
         }
     }
@@ -169,7 +177,15 @@ public class AcmeService : IAcmeService
         {
             await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsTxt);
             await dnsService.CreateTxtRecordAsync(rootDomain, recordName, dnsTxt);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "创建DNS TXT记录失败: Domain={Domain}, Record={Record}", domain, recordName);
+            throw;
+        }
 
+        try
+        {
             _logger.LogInformation("等待DNS传播: Delay={Delay}秒", CertificateConstants.DnsPropagationDelayMilliseconds / 1000);
             await Task.Delay(CertificateConstants.DnsPropagationDelayMilliseconds);
 
@@ -185,6 +201,18 @@ public class AcmeService : IAcmeService
         {
             _logger.LogError(ex, "DNS挑战验证失败: Domain={Domain}", domain);
             throw;
+        }
+        finally
+        {
+            try
+            {
+                _logger.LogInformation("清理DNS TXT记录: Record={Record}", recordName);
+                await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsTxt);
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.LogError(cleanupEx, "清理DNS TXT记录失败: Domain={Domain}, Record={Record}", domain, recordName);
+            }
         }
     }
 
@@ -271,14 +299,20 @@ public class AcmeService : IAcmeService
         await challenge.Validate();
     }
 
-    private static (string rr, string root) SplitDomainName(string domainName)
+    /// <summary>
+    /// 分割域名为子域名部分和根域名部分。
+    /// 对于多段公共后缀（如 .com.cn），取最后 3 段为根域名；否则取最后 2 段。
+    /// </summary>
+    internal static (string rr, string root) SplitDomainName(string domainName)
     {
-        var spans = domainName.Split('.').AsSpan<string>();
+        var spans = domainName.Split('.');
 
-        var index = spans.Length - 2;
+        // 当段数 >= 4 时（如 a.b.example.com），取最后 3 段为根域（b.example.com）
+        // 覆盖 .com.cn、.co.uk 等多段公共后缀场景
+        var index = spans.Length >= 4 ? spans.Length - 3 : spans.Length - 2;
 
-        var rr = string.Join(".", spans[..index]!);
-        var domain = string.Join(".", spans[index..]!);
+        var rr = string.Join(".", spans[..index]);
+        var domain = string.Join(".", spans[index..]);
 
         return (rr, domain);
     }
@@ -350,7 +384,7 @@ public class AcmeService : IAcmeService
         }
     }
 
-    public async Task CleanupAsync(string domain, bool isWildcard, object dnsService)
+    public async Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService)
     {
         _logger.LogInformation("清理ACME资源: Domain={Domain}, IsWildcard={IsWildcard}", domain, isWildcard);
 
@@ -378,7 +412,7 @@ public class AcmeService : IAcmeService
                 }
 
                 _logger.LogInformation("删除DNS TXT记录: Record={Record}", recordName);
-                await ((IAliyunDnsService)dnsService).ClearTxtRecordAsync(rootDomain, recordName, dnsKey ?? string.Empty);
+                await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsKey ?? string.Empty);
             }
 
             _authorizations.Clear();

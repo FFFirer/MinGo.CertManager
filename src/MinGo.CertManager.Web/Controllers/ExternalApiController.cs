@@ -101,11 +101,11 @@ public class ExternalApiController : ControllerBase
             {
                 CertificateFormat.Pfx => "application/x-pkcs12",
                 CertificateFormat.Pem => "application/x-pem-file",
-                CertificateFormat.Crt => "application/x-x509-ca-cert",
+                CertificateFormat.Crt => "application/zip",
                 _ => "application/octet-stream"
             };
 
-            var fileExtension = format.ToString().ToLower();
+            var fileExtension = format == CertificateFormat.Crt ? "zip" : format.ToString().ToLower();
             var fileName = $"{domain}.{fileExtension}";
 
             return File(certificateData, contentType, fileName);
@@ -122,7 +122,7 @@ public class ExternalApiController : ControllerBase
 
 public class CertificateRequest
 {
-    public string Domain { get; set; }
+    public string Domain { get; set; } = string.Empty;
     public bool IsWildcard { get; set; }
     public bool UseStaging { get; set; }
 }

@@ -86,12 +86,12 @@
 
 @code {
     [Inject]
-    private UserManager<ApplicationUser> UserManager { get; set; }
+    private UserManager<ApplicationUser> UserManager { get; set; } = null!;
     
     [Inject]
-    private NavigationManager NavigationManager { get; set; }
+    private NavigationManager NavigationManager { get; set; } = null!;
     
-    private ClaimsPrincipal currentUser;
+    private ClaimsPrincipal currentUser = null!;
     private PasswordModel passwordModel = new();
     private string Message = string.Empty;
     private bool IsSuccess = false;

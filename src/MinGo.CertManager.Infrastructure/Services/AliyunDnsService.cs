@@ -35,21 +35,49 @@ public class AliyunDnsService : IAliyunDnsService
         _client = new AlibabaCloud.SDK.Alidns20150109.Client(config);
     }
 
+    /// <summary>
+    /// 清理指定域名的 ACME DNS-01 challenge TXT 记录。
+    ///
+    /// == 清理方案说明 ==
+    /// DNS-01 challenge 在证书申请流程中需要在 DNS 添加 _acme-challenge.{sub} TXT 记录，
+    /// 申请完成后需要清除。但可能因进程崩溃、网络中断等原因导致记录残留。
+    /// 残留的 _acme-challenge 记录会导致后续的 DNS-01 challenge 验证失败（因为 Let's Encrypt
+    /// 可能读到旧值）。整体清理策略如下：
+    ///
+    /// 1. 【事前清理】每次创建新的 challenge 记录前，先调用本方法清理同名的历史残留记录。
+    ///    - 由 AcmeService.HandleDnsChallengeAsync() 在 CreateTxtRecordAsync() 之前调用。
+    /// 2. 【事后清理】challenge 验证完成后（无论成功/失败），在 finally 块中再次调用本方法清理。
+    ///    - 由 AcmeService.HandleDnsChallengeAsync() 的 finally 块调用。
+    /// 3. 【异常兜底】RequestCertificateAsync 整体 catch 块中调用 CleanupAsync，触发清理。
+    /// 4. 【进程崩溃恢复】若 ACME 进程在清理前崩溃，下次申请同域名证书时，#1 的事前清理会处理残留。
+    ///
+    /// 本方法只操作 _acme-challenge.{recordName} 的记录（通过 RRKeyWord 筛选 + 精确匹配），
+    /// 不会误删用户的其他 TXT 记录。
+    /// </summary>
+    /// <param name="rootDomain">根域名（如 example.com）</param>
+    /// <param name="recordName">TXT 记录名（如 _acme-challenge.www）</param>
+    /// <param name="dnsTxt">TXT 记录值（仅用于日志）</param>
     public async Task ClearTxtRecordAsync(string rootDomain, string recordName, string dnsTxt)
     {
         try
         {
-            var exists = await _client.DescribeDomainRecordsAsync(new()
+            var response = await _client.DescribeDomainRecordsAsync(new()
             {
                 DomainName = rootDomain,
-                Type = "TXT"
+                Type = "TXT",
+                RRKeyWord = recordName
             });
 
-            if (exists.Body?.DomainRecords?.Record != null)
+            if (response.Body?.DomainRecords?.Record != null)
             {
-                foreach (var record in exists.Body.DomainRecords.Record)
+                // 只删除精确匹配 RR 的记录，防止 RRKeyWord 模糊匹配误删
+                var matchingRecords = response.Body.DomainRecords.Record
+                    .Where(r => r.RR == recordName)
+                    .ToList();
+
+                foreach (var record in matchingRecords)
                 {
-                    _logger.LogInformation("删除已存在的DNS记录: Domain={RootDomain}, Record={Record}, RecordId={RecordId}",
+                    _logger.LogInformation("清理DNS-01 TXT记录: Domain={RootDomain}, Record={Record}, RecordId={RecordId}",
                         rootDomain, recordName, record.RecordId);
 
                     await _client.DeleteDomainRecordAsync(new()
@@ -61,7 +89,7 @@ public class AliyunDnsService : IAliyunDnsService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Clear DNS record {RR} of {RootDomain} for {TxtValue}", recordName, rootDomain, dnsTxt);
+            _logger.LogError(ex, "清理DNS-01 TXT记录失败: {RR} of {RootDomain}", recordName, rootDomain);
         }
     }
 

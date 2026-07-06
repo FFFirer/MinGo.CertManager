@@ -29,11 +29,11 @@
     /// 页面描述
     /// </summary>
     [Parameter]
-    public string Description { get; set; }
+    public string Description { get; set; } = string.Empty;
 
     /// <summary>
     /// 操作按钮内容
     /// </summary>
     [Parameter]
-    public RenderFragment Actions { get; set; }
+    public RenderFragment? Actions { get; set; }
 }
