@@ -97,4 +97,3 @@ demos/
 node_modules/
 .pnpm-store/
 *.tsbuildinfo
-/src/MinGo.CertManager.Web/wwwroot
