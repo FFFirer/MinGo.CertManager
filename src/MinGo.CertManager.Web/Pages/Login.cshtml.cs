@@ -10,13 +10,16 @@ namespace MinGo.CertManager.Web.Pages;
 public class LoginModel : PageModel
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<LoginModel> _logger;
 
     public LoginModel(
         SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager,
         ILogger<LoginModel> logger)
     {
         _signInManager = signInManager;
+        _userManager = userManager;
         _logger = logger;
     }
 
@@ -30,8 +33,9 @@ public class LoginModel : PageModel
 
     public class InputModel
     {
-        [Required(AllowEmptyStrings = false, ErrorMessage = "请输入用户名")]
-        public string Username { get; set; } = "";
+        [Required(AllowEmptyStrings = false, ErrorMessage = "请输入邮箱或用户名")]
+        [Display(Name = "邮箱 / 用户名")]
+        public string Email { get; set; } = "";
 
         [Required(AllowEmptyStrings = false, ErrorMessage = "请输入密码")]
         [DataType(DataType.Password)]
@@ -61,25 +65,40 @@ public class LoginModel : PageModel
 
         if (ModelState.IsValid)
         {
-            var result = await _signInManager.PasswordSignInAsync(
-                Input.Username,
-                Input.Password,
-                Input.RememberMe,
-                lockoutOnFailure: false);
-
-            if (result.Succeeded)
+            // 先用邮箱查找，再用用户名查找（兼容旧数据）
+            var user = await _userManager.FindByEmailAsync(Input.Email);
+            if (user == null)
             {
-                _logger.LogInformation("User {Username} logged in successfully", Input.Username);
-                return LocalRedirect(returnUrl);
+                user = await _userManager.FindByNameAsync(Input.Email);
             }
-            else if (result.IsLockedOut)
+
+            if (user != null)
             {
-                _logger.LogWarning("User {Username} account locked out", Input.Username);
-                ModelState.AddModelError(string.Empty, "账户已被锁定，请稍后再试。");
+                var result = await _signInManager.PasswordSignInAsync(
+                    user.UserName!,
+                    Input.Password,
+                    Input.RememberMe,
+                    lockoutOnFailure: false);
+
+                if (result.Succeeded)
+                {
+                    _logger.LogInformation("User {Email} logged in successfully", Input.Email);
+                    return LocalRedirect(returnUrl);
+                }
+
+                if (result.IsLockedOut)
+                {
+                    _logger.LogWarning("User {Email} account locked out", Input.Email);
+                    ModelState.AddModelError(string.Empty, "账户已被锁定，请稍后再试。");
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "密码错误。");
+                }
             }
             else
             {
-                ModelState.AddModelError(string.Empty, "用户名或密码错误。");
+                ModelState.AddModelError(string.Empty, "账号不存在。");
             }
         }
 

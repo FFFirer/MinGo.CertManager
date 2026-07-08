@@ -44,6 +44,16 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+// 配置 External Cookie 确保 OAuth 回调时能被正确读取
+builder.Services.ConfigureExternalCookie(options =>
+{
+    options.Cookie.Path = "/";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+});
+
 builder.Services.AddScoped<ICertificateRepository, CertificateRepository>();
 builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
@@ -90,6 +100,9 @@ builder.Services.AddQuartz(q =>
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
+// 注册第三方 OAuth 登录提供程序（GitHub、Google 等）
+builder.Services.AddOAuthLoginProviders(builder.Configuration);
+
 var app = builder.Build();
 
 await app.MigrateDatabaseAsync();
@@ -113,10 +126,10 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseAntiforgery();
-
-// 添加API密钥认证中间件
+// 添加API密钥认证中间件（在 Antiforgery 之前，因为 ApiKey 不经过 CSRF）
 app.UseApiKeyAuthentication();
+
+app.UseAntiforgery();
 
 app.MapControllers();
 app.MapRazorPages();

@@ -1,6 +1,8 @@
 @page "/login"
 @model MinGo.CertManager.Web.Pages.LoginModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using MinGo.CertManager.Core.Services
+@inject IEnumerable<IOAuthLoginProvider> OAuthProviders
 
 @{
     ViewData["Title"] = "MinGo.CertManager - 证书管理系统";
@@ -22,9 +24,9 @@
             }
 
             <div>
-                <label class="label">用户名</label>
-                <input asp-for="Input.Username" type="text" class="input" placeholder="请输入用户名">
-                <span asp-validation-for="Input.Username" class="text-red-500 text-sm"></span>
+                <label class="label">邮箱 / 用户名</label>
+                <input asp-for="Input.Email" type="text" class="input" placeholder="请输入邮箱或用户名">
+                <span asp-validation-for="Input.Email" class="text-red-500 text-sm"></span>
             </div>
 
             <div>
@@ -41,8 +43,42 @@
             <button type="submit" class="btn btn-primary w-full">登录</button>
         </form>
 
+        @* 第三方登录按钮 *@
+        @{
+            var oauthProviders = OAuthProviders?.ToList();
+        }
+        @if (oauthProviders != null && oauthProviders.Count != 0)
+        {
+            <div class="relative my-6">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-border"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-2 bg-card text-muted-foreground">或</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3">
+                @foreach (var provider in oauthProviders.OrderBy(p => p.DisplayOrder))
+                {
+                    <form method="post" asp-page="./ExternalLogin" asp-page-handler="Challenge">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="provider" value="@provider.ProviderName" />
+                        <input type="hidden" name="returnUrl"
+                               value="@(Model.ReturnUrl ?? "/")" />
+
+                        <button type="submit"
+                                class="btn btn-outline w-full flex items-center justify-center gap-2 hover:bg-accent transition-colors">
+                            <i class="@provider.IconCssClass text-lg"></i>
+                            使用 @provider.DisplayName 登录
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+
         <div class="mt-6 text-center text-sm text-muted-foreground">
-            <p>默认管理员账号: admin / admin</p>
+            <p>默认管理员账号: admin@example.com / admin</p>
         </div>
     </div>
 </div>
