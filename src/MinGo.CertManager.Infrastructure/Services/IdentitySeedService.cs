@@ -48,12 +48,14 @@ public static class IdentitySeedService
                 }
             }
 
-            var adminUser = await userManager.FindByNameAsync("admin");
+            // 兼容旧数据：先用旧用户名查找，再用邮箱查找
+            var adminUser = await userManager.FindByNameAsync("admin")
+                         ?? await userManager.FindByEmailAsync("admin@example.com");
             if (adminUser == null)
             {
                 adminUser = new ApplicationUser
                 {
-                    UserName = "admin",
+                    UserName = "admin@example.com",
                     Email = "admin@example.com",
                     EmailConfirmed = true,
                     Status = UserStatus.Active,
@@ -65,7 +67,7 @@ public static class IdentitySeedService
                 if (result.Succeeded)
                 {
                     await userManager.AddToRoleAsync(adminUser, "Admin");
-                    logger.LogInformation("Default admin user created successfully with username 'admin' and password 'admin'");
+                    logger.LogInformation("Default admin user created successfully with username 'admin@example.com' and password 'admin'");
                 }
                 else
                 {

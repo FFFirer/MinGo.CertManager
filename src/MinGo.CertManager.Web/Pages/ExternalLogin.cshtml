@@ -1,0 +1,50 @@
+@page "/ExternalLogin"
+@model MinGo.CertManager.Web.Pages.ExternalLoginModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    ViewData["Title"] = "MinGo.CertManager - 第三方登录";
+    Layout = "_Layout";
+}
+
+@if (Model.IsNoEmailFlow)
+{
+    <div class="min-h-screen flex items-center justify-center px-4">
+        <div class="card p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl font-bold text-primary mb-2">绑定邮箱</h1>
+                <p class="text-muted-foreground">
+                    您的 @Model.ProviderDisplayName 账号未提供邮箱，
+                    请输入您的邮箱以继续。
+                </p>
+            </div>
+
+            <form method="post" asp-page-handler="CompleteEmail" class="space-y-6">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <input type="hidden" name="provider" value="@Model.ProviderName" />
+
+                @if (ViewContext.ModelState.ErrorCount > 0)
+                {
+                    <div asp-validation-summary="All" class="p-3 bg-red-100 text-red-700 rounded-md"></div>
+                }
+
+                <div>
+                    <label class="label">邮箱</label>
+                    <input type="email" name="email" class="input" placeholder="请输入邮箱" required />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full">确认并登录</button>
+            </form>
+        </div>
+    </div>
+}
+else
+{
+    @* Challenge 页面 - 仅作为中转，通常用户不会看到此页 *@
+    <div class="min-h-screen flex items-center justify-center px-4">
+        <div class="card p-8 w-full max-w-md text-center">
+            <p class="text-muted-foreground">正在跳转到第三方登录...</p>
+        </div>
+    </div>
+}

@@ -136,10 +136,11 @@
 
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
+        // 释放模式：不调用 JS interop（电路可能已断开），
+        // 仅释放 .NET 端引用。JS 端的事件监听由浏览器页面卸载时自动清理。
         if (module != null)
         {
-            await module.InvokeVoidAsync("cleanupLoginDisplay");
-            await module.DisposeAsync();
+            @* await module.DisposeAsync(); *@
         }
         dotNetRef?.Dispose();
     }
