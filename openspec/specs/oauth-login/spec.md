@@ -65,6 +65,7 @@
 - `AuthenticationType` 为 `OpenIdConnect`
 - 回调路径: `/signin-simpleidserver`
 - 通过 `Authority` 配置，自动从 `/.well-known/openid-configuration` 发现端点
+- **Realm 配置**: 支持通过可选 `Realm` 配置项指定 SimpleIdServer Realm，代码自动拼接为 `{Authority}/{Realm}`；未设置时 Authority 原样使用
 - 默认 scope: `openid`、`profile`、`email`
 - Claim 映射: 通过 OIDC 中间件内置 `ClaimActions` + `GetClaimsFromUserInfoEndpoint`
 - 图标: `fas fa-id-card`
@@ -183,6 +184,7 @@ OAuth/OIDC Provider 的 ClientId 和 ClientSecret SHALL 通过配置管理。Ope
 - 每个 Provider 的 `DisplayName` 可在配置中覆盖
 - OAuth Provider 的端点、scope、Claim 映射可在配置中覆盖
 - OIDC Provider 通过 `Authority` 地址自动发现端点
+- OIDC Provider 支持可选的 `Realm` 字段，有值时自动拼接为 `{Authority}/{Realm}`
 - 每个 Provider 的 `ClientId` 和 `ClientSecret` 通过 User Secrets 注入
 - `OAuthProviderExtensions.cs` 负责批量注册启用的 Provider，按 `AuthType` 分流 OAuth/OIDC
 
@@ -192,10 +194,12 @@ OAuth/OIDC Provider 的 ClientId 和 ClientSecret SHALL 通过配置管理。Ope
 - **WHEN** 配置中不包含某个 Provider
 - **THEN** 系统 SHALL 不注册该 Provider 的认证方案
 
-#### Scenario: 通过配置启用 OIDC Provider
+#### Scenario: 通过配置启用 OIDC Provider（带 Realm）
 - **WHEN** `appsettings.json` 的 `OAuthProviders.EnabledProviders` 包含 "simpleidserver"
 - **THEN** 系统 SHALL 在启动时通过 `AddOpenIdConnect` 注册 SimpleIdServer 认证方案
-- **THEN** 系统 SHALL 根据配置中的 `Authority` 自动发现 OIDC 端点
+- **THEN** 系统 SHALL 根据配置中的 `Authority` 和 `Realm` 拼接 OIDC Authority URL
+- **WHEN** `Realm` 设为 `"master"`
+- **THEN** 最终 Authority 为 `{Authority}/master`，discovery 请求到 `{Authority}/master/.well-known/openid-configuration`
 
 ### Requirement: 安全要求
 

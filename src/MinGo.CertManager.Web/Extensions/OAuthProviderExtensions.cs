@@ -133,7 +133,13 @@ public static class OAuthProviderExtensions
         {
             options.SignInScheme = IdentityConstants.ExternalScheme;
 
-            options.Authority = section["Authority"] ?? "";
+            // Authority + 可选 Realm 拼接
+            var authority = section["Authority"] ?? "";
+            var realm = section["Realm"] ?? "";
+            options.Authority = string.IsNullOrEmpty(realm)
+                ? authority
+                : $"{authority.TrimEnd('/')}/{realm}";
+
             options.ClientId = section["ClientId"] ?? "";
             options.ClientSecret = section["ClientSecret"] ?? "";
             options.CallbackPath = new PathString(
