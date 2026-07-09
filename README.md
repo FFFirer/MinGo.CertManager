@@ -111,6 +111,15 @@ dotnet user-secrets init
 dotnet user-secrets set "AliyunDns:AccessKeyId" "your-access-key-id"
 dotnet user-secrets set "AliyunDns:AccessKeySecret" "your-access-key-secret"
 dotnet user-secrets set "Acme:AccountEmail" "your-email@example.com"
+
+# SimpleIdServer OIDC 配置
+dotnet user-secrets set "OAuthProviders:Providers:simpleidserver:Authority" "https://your-simpleidserver/master"
+dotnet user-secrets set "OAuthProviders:Providers:simpleidserver:ClientId" "your-client-id"
+dotnet user-secrets set "OAuthProviders:Providers:simpleidserver:ClientSecret" "your-client-secret"
+
+# GitHub OAuth 配置
+dotnet user-secrets set "OAuthProviders:Providers:github:ClientId" "your-github-client-id"
+dotnet user-secrets set "OAuthProviders:Providers:github:ClientSecret" "your-github-client-secret"
 ```
 
 ### 使用环境变量配置
