@@ -59,7 +59,7 @@
             </div>
 
             <div class="grid grid-cols-1 gap-3">
-                @foreach (var provider in oauthProviders.OrderBy(p => p.DisplayOrder))
+                @foreach (var provider in oauthProviders)
                 {
                     <form method="post" asp-page="./ExternalLogin" asp-page-handler="Challenge">
                         @Html.AntiForgeryToken()
