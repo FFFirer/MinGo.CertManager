@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
+@using MinGo.CertManager.Core.Services
 @using MinGo.CertManager.Infrastructure.Data
 @using System.Security.Claims
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -81,6 +82,79 @@
                 </EditForm>
             </div>
         </div>
+
+        @* 第三方账号管理 *@
+        <div class="card mt-6">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold mb-4">第三方账号</h3>
+
+                @if (!string.IsNullOrEmpty(linkMessage))
+                {
+                    <div class="p-3 rounded-md mb-4 @(linkIsSuccess ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")">
+                        @linkMessage
+                    </div>
+                }
+
+                @if (currentLogins.Count > 0)
+                {
+                    <div class="space-y-3">
+                        @foreach (var login in currentLogins)
+                        {
+                            <div class="flex items-center justify-between py-3 border-b last:border-b-0">
+                                <div class="flex items-center gap-3">
+                                    <i class="@GetProviderIcon(login.LoginProvider) text-xl w-6 text-center"></i>
+                                    <div>
+                                        <div class="font-medium">@login.ProviderDisplayName</div>
+                                        <div class="text-sm text-muted-foreground">@login.ProviderKey</div>
+                                    </div>
+                                </div>
+                                @if (showUnbindConfirm && unbindProvider == login.LoginProvider && unbindProviderKey == login.ProviderKey)
+                                {
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm text-muted-foreground">确认解除？</span>
+                                        <button class="btn btn-ghost btn-sm text-green-600" @onclick="() => ConfirmUnbind()">确认</button>
+                                        <button class="btn btn-ghost btn-sm" @onclick="() => CancelUnbind()">取消</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-ghost btn-sm text-red-500"
+                                            @onclick="() => PromptUnbind(login.LoginProvider, login.ProviderKey)"
+                                            disabled="@(!CanUnbind)">
+                                        @(CanUnbind ? "解除绑定" : "不可解除")
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted-foreground py-3">尚未绑定第三方账号</p>
+                }
+
+                @* 绑定新账号 *@
+                @{
+                    var availableProviders = GetAvailableProviders();
+                }
+                @if (availableProviders.Count > 0)
+                {
+                    <div class="mt-4 pt-4 border-t border-border">
+                        <p class="text-sm text-muted-foreground mb-3">绑定第三方账号</p>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var provider in availableProviders)
+                            {
+                                <button class="btn btn-outline btn-sm flex items-center gap-2"
+                                        @onclick="() => StartLinkLogin(provider.ProviderName)">
+                                    <i class="@provider.IconCssClass"></i>
+                                    @provider.DisplayName
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>
 
@@ -91,17 +165,36 @@
     [Inject]
     private NavigationManager NavigationManager { get; set; } = null!;
     
+    [Inject]
+    private SignInManager<ApplicationUser> SignInManager { get; set; } = null!;
+
+    [Inject]
+    private IEnumerable<IOAuthLoginProvider> OAuthProviders { get; set; } = null!;
+    
     private ClaimsPrincipal currentUser = null!;
     private PasswordModel passwordModel = new();
     private string Message = string.Empty;
     private bool IsSuccess = false;
     
+    // 外部账号管理
+    private List<UserLoginInfo> currentLogins = new();
+    private Dictionary<string, string> providerIconMap = new();
+    private bool hasPassword;
+    private string unbindProvider = string.Empty;
+    private string unbindProviderKey = string.Empty;
+    private bool showUnbindConfirm = false;
+    private string linkMessage = string.Empty;
+    private bool linkIsSuccess;
+    
     private string UserRole => GetUserRole();
+    
+    private bool CanUnbind => hasPassword || currentLogins.Count > 1;
     
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         currentUser = authState.User;
+        await LoadExternalLoginsAsync();
     }
     
     private string GetUserRole()
@@ -111,6 +204,75 @@
             return "管理员";
         }
         return "用户";
+    }
+    
+    private async Task LoadExternalLoginsAsync()
+    {
+        var user = await UserManager.GetUserAsync(currentUser);
+        if (user == null) return;
+
+        // 构建 Provider 名称 → 图标映射
+        providerIconMap = OAuthProviders.ToDictionary(p => p.ProviderName, p => p.IconCssClass);
+
+        // 获取已绑定的外部账号
+        currentLogins = (await UserManager.GetLoginsAsync(user)).ToList();
+
+        // 检查用户是否有密码
+        hasPassword = await UserManager.HasPasswordAsync(user);
+    }
+
+    private string GetProviderIcon(string providerName)
+    {
+        return providerIconMap.TryGetValue(providerName, out var icon) ? icon : "fas fa-key";
+    }
+
+    private void StartLinkLogin(string provider)
+    {
+        NavigationManager.NavigateTo($"/ExternalLogin?handler=LinkLogin&provider={provider}&returnUrl=/profile");
+    }
+
+    private List<IOAuthLoginProvider> GetAvailableProviders()
+    {
+        var boundProviders = new HashSet<string>(currentLogins.Select(l => l.LoginProvider));
+        return OAuthProviders
+            .Where(p => !boundProviders.Contains(p.ProviderName))
+            .ToList();
+    }
+
+    private void PromptUnbind(string provider, string providerKey)
+    {
+        unbindProvider = provider;
+        unbindProviderKey = providerKey;
+        showUnbindConfirm = true;
+    }
+
+    private void CancelUnbind()
+    {
+        unbindProvider = string.Empty;
+        unbindProviderKey = string.Empty;
+        showUnbindConfirm = false;
+    }
+
+    private async Task ConfirmUnbind()
+    {
+        var user = await UserManager.GetUserAsync(currentUser);
+        if (user == null) return;
+
+        var result = await UserManager.RemoveLoginAsync(user, unbindProvider, unbindProviderKey);
+        if (result.Succeeded)
+        {
+            await SignInManager.RefreshSignInAsync(user);
+            linkMessage = $"已解除 {unbindProvider} 的绑定";
+            linkIsSuccess = true;
+        }
+        else
+        {
+            linkMessage = "解除绑定失败：" + string.Join(", ", result.Errors.Select(e => e.Description));
+            linkIsSuccess = false;
+        }
+
+        CancelUnbind();
+        await LoadExternalLoginsAsync();
     }
     
     private async Task HandleChangePassword()

@@ -170,7 +170,6 @@ public class ExternalLoginModel : PageModel
         }
 
         await _userManager.AddLoginAsync(user, info);
-        await _userManager.AddToRoleAsync(user, "User");
         await _signInManager.SignInAsync(user, isPersistent: false);
 
         _logger.LogInformation(
@@ -266,9 +265,80 @@ public class ExternalLoginModel : PageModel
         }
 
         await _userManager.AddLoginAsync(user, info);
-        await _userManager.AddToRoleAsync(user, "User");
         await _signInManager.SignInAsync(user, isPersistent: false);
 
         return LocalRedirect(returnUrl);
+    }
+
+    // ================================================================
+    // 4. 绑定外部账号 — 已登录用户从 Profile 页发起
+    // ================================================================
+
+    /// <summary>
+    /// 发起 OAuth Challenge 用于绑定外部账号到当前用户
+    /// (POST 版本 — 由 Login 页 Razor form 使用)
+    /// </summary>
+    public IActionResult OnPostLinkLogin(string provider, string returnUrl = "/profile")
+    {
+        if (string.IsNullOrEmpty(provider))
+        {
+            return RedirectToPage("/Profile");
+        }
+
+        var redirectUrl = Url.Page("./ExternalLogin", "LinkLoginCallback",
+            new { returnUrl });
+        var properties = _signInManager
+            .ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+
+        return new ChallengeResult(provider, properties);
+    }
+
+    /// <summary>
+    /// 发起 OAuth Challenge 用于绑定外部账号到当前用户
+    /// (GET 版本 — 由 Profile Blazor 页使用)
+    /// </summary>
+    public IActionResult OnGetLinkLogin(string provider, string returnUrl = "/profile")
+    {
+        return OnPostLinkLogin(provider, returnUrl);
+    }
+
+    /// <summary>
+    /// 绑定回调 — 将 Provider 账号绑定到当前已登录用户
+    /// </summary>
+    public async Task<IActionResult> OnGetLinkLoginCallbackAsync(string returnUrl = "/profile")
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return RedirectToPage("/Login");
+        }
+
+        var info = await _signInManager.GetExternalLoginInfoAsync();
+        if (info == null)
+        {
+            _logger.LogWarning(
+                "LinkLogin callback failed: ExternalLoginInfo is null (possible expired temp cookie)");
+            return RedirectToPage(returnUrl);
+        }
+
+        var result = await _userManager.AddLoginAsync(user, info);
+        if (result.Succeeded)
+        {
+            await _signInManager.RefreshSignInAsync(user);
+            _logger.LogInformation(
+                "User {UserId} linked {Provider} account {ProviderKey}",
+                user.Id, info.LoginProvider, info.ProviderKey);
+        }
+        else
+        {
+            foreach (var error in result.Errors)
+            {
+                _logger.LogWarning(
+                    "Failed to link {Provider} to user {UserId}: {Error}",
+                    info.LoginProvider, user.Id, error.Description);
+            }
+        }
+
+        return RedirectToPage(returnUrl);
     }
 }

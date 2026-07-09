@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MinGo.CertManager.Core.Constants;
 using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Infrastructure.Data;
 
@@ -20,10 +21,10 @@ public static class IdentitySeedService
 
             await dbContext.Database.EnsureCreatedAsync();
 
-            var adminRoleExists = await roleManager.RoleExistsAsync("Admin");
+            var adminRoleExists = await roleManager.RoleExistsAsync(RoleConstants.Admin);
             if (!adminRoleExists)
             {
-                var result = await roleManager.CreateAsync(new IdentityRole("Admin"));
+                var result = await roleManager.CreateAsync(new IdentityRole(RoleConstants.Admin));
                 if (result.Succeeded)
                 {
                     logger.LogInformation("Admin role created successfully");
@@ -34,10 +35,10 @@ public static class IdentitySeedService
                 }
             }
 
-            var userRoleExists = await roleManager.RoleExistsAsync("User");
+            var userRoleExists = await roleManager.RoleExistsAsync(RoleConstants.User);
             if (!userRoleExists)
             {
-                var result = await roleManager.CreateAsync(new IdentityRole("User"));
+                var result = await roleManager.CreateAsync(new IdentityRole(RoleConstants.User));
                 if (result.Succeeded)
                 {
                     logger.LogInformation("User role created successfully");
@@ -66,7 +67,7 @@ public static class IdentitySeedService
                 var result = await userManager.CreateAsync(adminUser, "admin");
                 if (result.Succeeded)
                 {
-                    await userManager.AddToRoleAsync(adminUser, "Admin");
+                    await userManager.AddToRoleAsync(adminUser, RoleConstants.Admin);
                     logger.LogInformation("Default admin user created successfully with username 'admin@example.com' and password 'admin'");
                 }
                 else
