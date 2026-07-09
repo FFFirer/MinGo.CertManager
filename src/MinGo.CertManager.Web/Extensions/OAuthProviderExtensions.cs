@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -13,14 +14,14 @@ using MinGo.CertManager.Core.Services;
 namespace MinGo.CertManager.Web.Extensions;
 
 /// <summary>
-/// OAuth 登录提供程序注册扩展方法
+/// 第三方 OAuth/OIDC 登录提供程序注册扩展方法
 /// </summary>
 public static class OAuthProviderExtensions
 {
     /// <summary>
-    /// 注册所有启用的第三方 OAuth 登录提供程序。
+    /// 注册所有启用的第三方 OAuth/OIDC 登录提供程序。
     /// 通过程序集扫描自动发现所有 <see cref="IOAuthLoginProvider"/> 实现，
-    /// 并只注册 appsettings.json 中 <c>OAuthProviders.EnabledProviders</c> 列出的提供程序。
+    /// 按 appsettings.json 中 <c>OAuthProviders.EnabledProviders</c> 数组顺序注册。
     /// </summary>
     public static IServiceCollection AddOAuthLoginProviders(
         this IServiceCollection services,
@@ -30,19 +31,27 @@ public static class OAuthProviderExtensions
             .GetSection("OAuthProviders:EnabledProviders")
             .Get<string[]>() ?? [];
 
-        var providerTypes = DiscoverProviderTypes();
+        // 程序集扫描 → 字典（ProviderName → instance）
+        var providerMap = DiscoverProviders();
         var authBuilder = services.AddAuthentication();
 
-        foreach (var type in providerTypes)
+        // 按 EnabledProviders 数组顺序注册
+        foreach (var providerName in enabledProviders)
         {
-            if (Activator.CreateInstance(type) is not IOAuthLoginProvider instance)
+            if (!providerMap.TryGetValue(providerName, out var instance))
                 continue;
 
             services.AddSingleton(typeof(IOAuthLoginProvider), instance);
 
-            if (enabledProviders.Contains(instance.ProviderName))
+            var displayName = GetDisplayName(configuration, providerName, instance.DisplayName);
+
+            if (instance.AuthType == AuthenticationType.OpenIdConnect)
             {
-                RegisterOAuthProvider(authBuilder, instance, configuration);
+                RegisterOpenIdConnectProvider(authBuilder, providerName, displayName, configuration);
+            }
+            else
+            {
+                RegisterOAuthProvider(authBuilder, instance, displayName, configuration);
             }
         }
 
@@ -50,17 +59,26 @@ public static class OAuthProviderExtensions
     }
 
     /// <summary>
-    /// 为指定 provider 注册 OAuth 认证方案
+    /// 从配置读取 DisplayName，不存在时使用默认值
+    /// </summary>
+    private static string GetDisplayName(IConfiguration configuration, string providerName, string defaultDisplayName)
+    {
+        return configuration[$"OAuthProviders:Providers:{providerName}:DisplayName"] ?? defaultDisplayName;
+    }
+
+    /// <summary>
+    /// 为指定 provider 注册 OAuth 认证方案（AddOAuth）
     /// </summary>
     private static void RegisterOAuthProvider(
         AuthenticationBuilder builder,
         IOAuthLoginProvider provider,
+        string displayName,
         IConfiguration configuration)
     {
         var section = configuration.GetSection(
             $"OAuthProviders:Providers:{provider.ProviderName}");
 
-        builder.AddOAuth(provider.ProviderName, provider.DisplayName, options =>
+        builder.AddOAuth(provider.ProviderName, displayName, options =>
         {
             // 关键：设置 SignInScheme 为 Identity.External
             // 这样 OAuth handler 完成流程后会写入外部登录凭据，
@@ -95,7 +113,59 @@ public static class OAuthProviderExtensions
 
             options.SaveTokens = true;
 
-            ConfigureEvents(options, provider.ProviderName);
+            ConfigureOAuthEvents(options, provider.ProviderName);
+        });
+    }
+
+    /// <summary>
+    /// 为指定 provider 注册 OpenID Connect 认证方案（AddOpenIdConnect）
+    /// </summary>
+    private static void RegisterOpenIdConnectProvider(
+        AuthenticationBuilder builder,
+        string providerName,
+        string displayName,
+        IConfiguration configuration)
+    {
+        var section = configuration.GetSection(
+            $"OAuthProviders:Providers:{providerName}");
+
+        builder.AddOpenIdConnect(providerName, displayName, options =>
+        {
+            options.SignInScheme = IdentityConstants.ExternalScheme;
+
+            options.Authority = section["Authority"] ?? "";
+            options.ClientId = section["ClientId"] ?? "";
+            options.ClientSecret = section["ClientSecret"] ?? "";
+            options.CallbackPath = new PathString(
+                section["CallbackPath"] ?? $"/signin-{providerName}");
+
+            options.ResponseType = "code";
+
+            // Scope 配置（默认 openid profile email）
+            var scopes = section.GetSection("Scopes").Get<string[]>();
+            if (scopes != null)
+            {
+                foreach (var scope in scopes)
+                    options.Scope.Add(scope);
+            }
+            else
+            {
+                options.Scope.Add("openid");
+                options.Scope.Add("profile");
+                options.Scope.Add("email");
+            }
+
+            options.GetClaimsFromUserInfoEndpoint = true;
+            options.SaveTokens = true;
+
+            // Claim 映射
+            options.MapInboundClaims = false;
+            options.TokenValidationParameters.NameClaimType = "name";
+            options.TokenValidationParameters.RoleClaimType = "role";
+
+            options.ClaimActions.MapUniqueJsonKey("sub", "sub");
+            options.ClaimActions.MapUniqueJsonKey("name", "name");
+            options.ClaimActions.MapUniqueJsonKey("email", "email");
         });
     }
 
@@ -137,7 +207,7 @@ public static class OAuthProviderExtensions
     /// 也不执行 ClaimActions（context.User 为空 {}）。
     /// 所有 claims 必须在此处通过手动调用用户信息 API 添加。
     /// </summary>
-    private static void ConfigureEvents(OAuthOptions options, string providerName)
+    private static void ConfigureOAuthEvents(OAuthOptions options, string providerName)
     {
         options.Events.OnCreatingTicket = async context =>
         {
@@ -268,19 +338,26 @@ public static class OAuthProviderExtensions
     }
 
     /// <summary>
-    /// 扫描所有已加载程序集，查找 IOAuthLoginProvider 的非抽象实现类
+    /// 扫描所有已加载程序集，查找 IOAuthLoginProvider 的非抽象实现类，
+    /// 返回 ProviderName → instance 的字典
     /// </summary>
-    private static List<Type> DiscoverProviderTypes()
+    private static Dictionary<string, IOAuthLoginProvider> DiscoverProviders()
     {
-        var providerTypes = new List<Type>();
+        var providers = new Dictionary<string, IOAuthLoginProvider>();
 
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             try
             {
-                providerTypes.AddRange(assembly.GetTypes()
+                foreach (var type in assembly.GetTypes()
                     .Where(t => t is { IsClass: true, IsAbstract: false, IsPublic: true }
-                             && typeof(IOAuthLoginProvider).IsAssignableFrom(t)));
+                             && typeof(IOAuthLoginProvider).IsAssignableFrom(t)))
+                {
+                    if (Activator.CreateInstance(type) is IOAuthLoginProvider instance)
+                    {
+                        providers.TryAdd(instance.ProviderName, instance);
+                    }
+                }
             }
             catch (ReflectionTypeLoadException)
             {
@@ -288,6 +365,6 @@ public static class OAuthProviderExtensions
             }
         }
 
-        return providerTypes;
+        return providers;
     }
 }
