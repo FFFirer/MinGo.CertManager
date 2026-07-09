@@ -26,6 +26,7 @@
                 <tr>
                     <th>用户名</th>
                     <th>角色</th>
+                    <th class="whitespace-nowrap min-w-[120px]">外部身份</th>
                     <th>创建时间</th>
                     <th>操作</th>
                 </tr>
@@ -36,6 +37,24 @@
                     <tr>
                         <td class="font-medium">@user.UserName</td>
                         <td><span class="badge badge-info">@GetRoleText(user)</span></td>
+                        <td>
+                            @{
+                                var logins = GetUserLogins(user.Id);
+                            }
+                            @if (logins.Count > 0)
+                            {
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach (var login in logins)
+                                    {
+                                        <span class="badge @GetBadgeClass(login.LoginProvider)">@login.ProviderDisplayName</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted-foreground">—</span>
+                            }
+                        </td>
                         <td>@user.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                         <td>
                             @if (user.UserName != "admin")
@@ -61,6 +80,7 @@
 
     private List<ApplicationUser> users = new();
     private Dictionary<string, string> userRoles = new();
+    private Dictionary<string, List<UserLoginInfo>> userLogins = new();
     private bool showAddUserModal = false;
 
     protected override async Task OnInitializedAsync()
@@ -72,6 +92,7 @@
     {
         users = UserManager.Users.ToList();
         userRoles = new Dictionary<string, string>();
+        userLogins = new Dictionary<string, List<UserLoginInfo>>();
 
         foreach (var user in users)
         {
@@ -83,12 +104,31 @@
                 "User" => "普通用户",
                 _ => "未知"
             };
+
+            var logins = await UserManager.GetLoginsAsync(user);
+            userLogins[user.Id] = logins.ToList();
         }
     }
 
     private string GetRoleText(ApplicationUser user)
     {
         return userRoles.TryGetValue(user.Id, out var roleText) ? roleText : "未知";
+    }
+
+    private List<UserLoginInfo> GetUserLogins(string userId)
+    {
+        return userLogins.TryGetValue(userId, out var logins) ? logins : new();
+    }
+
+    private string GetBadgeClass(string providerName)
+    {
+        return providerName switch
+        {
+            "github" => "badge bg-[#24292f] text-white",
+            "simpleidserver" => "badge bg-[#5c6bc0] text-white",
+            "google" => "badge bg-[#4285f4] text-white",
+            _ => "badge"
+        };
     }
 
     private void ShowAddUserDialog()

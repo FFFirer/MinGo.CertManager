@@ -44,6 +44,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+// 替换默认 UserManager 为自定义 ApplicationUserManager（自动赋予 User 角色）
+builder.Services.AddScoped<UserManager<ApplicationUser>, ApplicationUserManager>();
+
 // 配置 External Cookie 确保 OAuth 回调时能被正确读取
 builder.Services.ConfigureExternalCookie(options =>
 {
