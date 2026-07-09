@@ -161,10 +161,6 @@ public static class OAuthProviderExtensions
                 options.Scope.Add("profile");
             }
 
-            // SimpleIdServer 对 PAR (Pushed Authorization Requests) 支持可能不完善
-            // 默认禁用 PAR，使用标准 redirect 流程
-            options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
-
             options.GetClaimsFromUserInfoEndpoint = true;
             options.SaveTokens = true;
 
