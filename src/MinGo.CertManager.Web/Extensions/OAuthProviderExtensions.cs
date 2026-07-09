@@ -147,7 +147,8 @@ public static class OAuthProviderExtensions
 
             options.ResponseType = "code";
 
-            // Scope 配置（默认 openid profile email）
+            // ⚠️ SimpleIdServer 可能不支持 email scope，需在 SimpleIdServer 端添加
+            // 配置中可显式指定 Scopes 数组覆盖默认值
             var scopes = section.GetSection("Scopes").Get<string[]>();
             if (scopes != null)
             {
@@ -158,8 +159,11 @@ public static class OAuthProviderExtensions
             {
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
-                options.Scope.Add("email");
             }
+
+            // SimpleIdServer 对 PAR (Pushed Authorization Requests) 支持可能不完善
+            // 默认禁用 PAR，使用标准 redirect 流程
+            options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
 
             options.GetClaimsFromUserInfoEndpoint = true;
             options.SaveTokens = true;
