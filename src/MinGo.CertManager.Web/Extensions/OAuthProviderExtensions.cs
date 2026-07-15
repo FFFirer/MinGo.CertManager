@@ -31,6 +31,11 @@ public static class OAuthProviderExtensions
             .GetSection("OAuthProviders:EnabledProviders")
             .Get<string[]>() ?? [];
 
+        if(enabledProviders.Any() == false)
+        {
+            return services;
+        }
+
         // 程序集扫描 → 字典（ProviderName → instance）
         var providerMap = DiscoverProviders();
         var authBuilder = services.AddAuthentication();
