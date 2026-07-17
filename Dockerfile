@@ -2,13 +2,14 @@
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:20-alpine AS frontend-build
 
 # 安装 pnpm
-ARG NPM_REGISTRY=https://registry.npmjs.org/
+ARG NPM_REGISTRY=https://registry.npmmirror.com/
 
 ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}
+ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY}
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN npm install -g corepack@latest
+RUN npm install -g corepack@latest --registry=https://registry.npmmirror.com
 
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
