@@ -46,6 +46,8 @@ public static class OAuthProviderExtensions
             if (!providerMap.TryGetValue(providerName, out var instance))
                 continue;
 
+            Console.WriteLine("Configuring OAuth Login Provider: {0}", providerName);
+
             services.AddSingleton(typeof(IOAuthLoginProvider), instance);
 
             var displayName = GetDisplayName(configuration, providerName, instance.DisplayName);
