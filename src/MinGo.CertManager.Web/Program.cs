@@ -11,6 +11,8 @@ using MinGo.CertManager.Web.Extensions;
 using MinGo.CertManager.Web.Middleware;
 using Quartz;
 using Serilog;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Vite.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,6 +78,8 @@ builder.Services.Configure<QuartzSettings>(
     builder.Configuration.GetSection(QuartzSettings.SectionName));
 builder.Services.Configure<ApiKeySettings>(
     builder.Configuration.GetSection(ApiKeySettings.SectionName));
+builder.Services.Configure<ForwardedHeadersSettings>(
+    builder.Configuration.GetSection(ForwardedHeadersSettings.SectionName));
 
 builder.Services.AddQuartz(q =>
 {
@@ -107,6 +111,22 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 builder.Services.AddOAuthLoginProviders(builder.Configuration);
 
 var app = builder.Build();
+
+// 反向代理支持：按配置启用 ForwardedHeaders 中间件
+// 当部署在 nginx/Caddy/Traefik 后面时，设置 ForwardedHeaders.Enabled=true
+// 应用自动读取 X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host 头
+var forwardedHeadersSettings = app.Services.GetRequiredService<IOptions<ForwardedHeadersSettings>>().Value;
+if (forwardedHeadersSettings.Enabled)
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                         | ForwardedHeaders.XForwardedProto
+                         | ForwardedHeaders.XForwardedHost,
+        KnownIPNetworks = { },
+        KnownProxies = { }
+    });
+}
 
 await app.MigrateDatabaseAsync();
 

@@ -49,3 +49,10 @@ public class ApiKeyItem
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ExpiredAt { get; set; }
 }
+
+public class ForwardedHeadersSettings
+{
+    public const string SectionName = "ForwardedHeaders";
+
+    public bool Enabled { get; set; } = false;
+}
