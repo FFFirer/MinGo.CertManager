@@ -115,18 +115,7 @@ var app = builder.Build();
 // 反向代理支持：按配置启用 ForwardedHeaders 中间件
 // 当部署在 nginx/Caddy/Traefik 后面时，设置 ForwardedHeaders.Enabled=true
 // 应用自动读取 X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host 头
-var forwardedHeadersSettings = app.Services.GetRequiredService<IOptions<ForwardedHeadersSettings>>().Value;
-if (forwardedHeadersSettings.Enabled)
-{
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
-    {
-        ForwardedHeaders = ForwardedHeaders.XForwardedFor
-                         | ForwardedHeaders.XForwardedProto
-                         | ForwardedHeaders.XForwardedHost,
-        KnownIPNetworks = { },
-        KnownProxies = { }
-    });
-}
+app.UseForwardedHeaders();
 
 await app.MigrateDatabaseAsync();
 

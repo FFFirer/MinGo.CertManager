@@ -97,7 +97,5 @@ demos/
 node_modules/
 .pnpm-store/
 *.tsbuildinfo
-/.opencode/worktree-session-state.json
-/.opencode/worktrees
-/.opencode/worktree-session-state.json
 .opencode/worktree-session-state.json
+.omo/
