@@ -69,11 +69,55 @@ public class CertificateService : ICertificateService
 
         try
         {
+            await ExecuteCertificateRequestAsync(certificate);
+            return certificate;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "证书申请失败: CertificateId={CertificateId}, Domain={Domain}", certificate.Id, domain);
+            throw;
+        }
+    }
+
+    public async Task<Certificate> ProcessCertificateAsync(Guid certificateId)
+    {
+        _logger.LogInformation("处理已存在的证书申请: CertificateId={CertificateId}", certificateId);
+
+        var certificate = await _certificateRepository.GetByIdAsync(certificateId);
+        if (certificate == null)
+        {
+            _logger.LogWarning("证书不存在: CertificateId={CertificateId}", certificateId);
+            throw new ArgumentException("Certificate not found", nameof(certificateId));
+        }
+
+        if (certificate.AcmeStatus != AcmeProcessStatus.Initializing)
+        {
+            _logger.LogWarning("证书已在处理中或已完成: CertificateId={CertificateId}, AcmeStatus={AcmeStatus}",
+                certificateId, certificate.AcmeStatus);
+            throw new InvalidOperationException($"Certificate is already being processed or completed. Current status: {certificate.AcmeStatus}");
+        }
+
+        try
+        {
+            await ExecuteCertificateRequestAsync(certificate);
+            return certificate;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "证书申请失败: CertificateId={CertificateId}, Domain={Domain}", certificateId, certificate.Domain);
+            throw;
+        }
+    }
+
+    private async Task ExecuteCertificateRequestAsync(Certificate certificate)
+    {
+        try
+        {
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingAccount, "创建ACME账户");
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingOrder, "创建ACME订单");
 
-            var certificateResult = await _acmeService.RequestCertificateAsync(domain, isWildcard, _aliyunDnsService, useStaging);
+            var certificateResult = await _acmeService.RequestCertificateAsync(certificate.Domain, certificate.IsWildcard, _aliyunDnsService, certificate.UseStaging);
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.Completed, "证书申请完成");
 
@@ -89,12 +133,10 @@ public class CertificateService : ICertificateService
             await _certificateRepository.UpdateAsync(certificate);
 
             _logger.LogInformation("证书申请成功: CertificateId={CertificateId}, ExpiresAt={ExpiresAt}", certificate.Id, certificate.ExpiresAt);
-            return certificate;
         }
         catch (Exception ex)
         {
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.Failed, $"证书申请失败: {ex.Message}");
-            _logger.LogError(ex, "证书申请失败: CertificateId={CertificateId}, Domain={Domain}", certificate.Id, domain);
             certificate.Status = CertificateStatus.Failed;
             certificate.UpdatedAt = DateTime.UtcNow;
             await _certificateRepository.UpdateAsync(certificate);
@@ -116,8 +158,15 @@ public class CertificateService : ICertificateService
         _logger.LogInformation("证书信息: Domain={Domain}, IsWildcard={IsWildcard}, Status={Status}",
             existingCertificate.Domain, existingCertificate.IsWildcard, existingCertificate.Status);
 
-        var dnsProvider = await GetDefaultDnsProvider();
-        return await RequestCertificateAsync(existingCertificate.Domain, existingCertificate.IsWildcard, dnsProvider, existingCertificate.UseStaging);
+        // 重置证书状态为初始化，准备重新申请
+        existingCertificate.Status = CertificateStatus.Pending;
+        existingCertificate.AcmeStatus = AcmeProcessStatus.Initializing;
+        existingCertificate.AcmeStatusMessage = "准备续签";
+        existingCertificate.UpdatedAt = DateTime.UtcNow;
+        await _certificateRepository.UpdateAsync(existingCertificate);
+
+        // 处理已存在的证书申请（更新现有记录，不创建新记录）
+        return await ProcessCertificateAsync(certificateId);
     }
 
     public async Task<byte[]> ExportCertificateAsync(Guid certificateId, CertificateFormat format, string? password = null)

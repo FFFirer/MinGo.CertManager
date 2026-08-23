@@ -41,7 +41,7 @@ public class CertificateRequestJob : IJob
         // 检查证书是否已经在申请中（防止重复申请）
         if (certificate.AcmeStatus != AcmeProcessStatus.Initializing)
         {
-            _logger.LogWarning("Certificate is already being processed: {CertificateId}, Status: {Status}", 
+            _logger.LogWarning("Certificate is already being processed: {CertificateId}, Status: {Status}",
                 certificateId, certificate.AcmeStatus);
             return;
         }
@@ -52,24 +52,8 @@ public class CertificateRequestJob : IJob
 
         try
         {
-            // 获取默认的DNS提供商
-            var dnsProvider = new DnsProvider
-            {
-                Id = Guid.NewGuid(),
-                ProviderType = DnsProviderType.Aliyun,
-                AccessKeyId = string.Empty, // 使用配置中的默认值
-                AccessKeySecret = string.Empty, // 使用配置中的默认值
-                RegionId = "cn-hangzhou",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            // 创建证书申请任务
-            var certificateRequestTask = _certificateService.RequestCertificateAsync(
-                certificate.Domain,
-                certificate.IsWildcard,
-                dnsProvider,
-                certificate.UseStaging);
+            // 处理已存在的证书申请（更新现有记录，不创建新记录）
+            var certificateRequestTask = _certificateService.ProcessCertificateAsync(certificateId);
 
             // 等待证书申请任务或超时
             var completedTask = await Task.WhenAny(certificateRequestTask, timeoutTask);
@@ -78,14 +62,14 @@ public class CertificateRequestJob : IJob
             {
                 // 超时处理
                 _logger.LogError("Certificate request job timed out for CertificateId: {CertificateId}", certificateId);
-                
+
                 // 更新证书状态为失败
                 certificate.Status = CertificateStatus.Failed;
                 certificate.AcmeStatus = AcmeProcessStatus.Failed;
                 certificate.AcmeStatusMessage = "证书申请超时（超过10分钟）";
                 certificate.UpdatedAt = DateTime.UtcNow;
                 await _certificateRepository.UpdateAsync(certificate);
-                
+
                 return;
             }
 
@@ -96,14 +80,14 @@ public class CertificateRequestJob : IJob
         catch (Exception ex)
         {
             _logger.LogError(ex, "Certificate request job failed for CertificateId: {CertificateId}", certificateId);
-            
+
             // 更新证书状态为失败
             certificate.Status = CertificateStatus.Failed;
             certificate.AcmeStatus = AcmeProcessStatus.Failed;
             certificate.AcmeStatusMessage = $"证书申请失败: {ex.Message}";
             certificate.UpdatedAt = DateTime.UtcNow;
             await _certificateRepository.UpdateAsync(certificate);
-            
+
             throw;
         }
     }

@@ -50,12 +50,9 @@ public class CertificateRenewalJob : IJob
                 try
                 {
                     _logger.LogInformation($"Renewing certificate for domain: {certificate.Domain}");
-                    
+
                     var renewedCertificate = await _certificateService.RenewCertificateAsync(certificate.Id);
-                    
-                    certificate.Status = CertificateStatus.Expired;
-                    await _certificateRepository.UpdateAsync(certificate);
-                    
+
                     _logger.LogInformation($"Successfully renewed certificate for domain: {renewedCertificate.Domain}");
                 }
                 catch (Exception ex)

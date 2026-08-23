@@ -8,7 +8,7 @@ namespace MinGo.CertManager.Core.Services;
 public interface ICertificateService
 {
     /// <summary>
-    /// 申请证书
+    /// 申请证书（创建新记录）
     /// </summary>
     /// <param name="domain">域名</param>
     /// <param name="isWildcard">是否通配符证书</param>
@@ -16,7 +16,14 @@ public interface ICertificateService
     /// <param name="useStaging">是否使用测试环境</param>
     /// <returns>证书实体</returns>
     Task<Certificate> RequestCertificateAsync(string domain, bool isWildcard, DnsProvider dnsProvider, bool useStaging = false);
-    
+
+    /// <summary>
+    /// 处理已存在的证书申请（更新现有记录，不创建新记录）
+    /// </summary>
+    /// <param name="certificateId">证书ID</param>
+    /// <returns>更新后的证书实体</returns>
+    Task<Certificate> ProcessCertificateAsync(Guid certificateId);
+
     /// <summary>
     /// 续签证书
     /// </summary>

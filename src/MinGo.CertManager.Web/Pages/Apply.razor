@@ -138,14 +138,8 @@
             StatusMessage = null;
 
             // 检查同一域名是否已有证书正在申请中
-            var existingCertificates = await CertificateRepository.GetAllAsync();
-            var pendingCertificate = existingCertificates
-                .FirstOrDefault(c => c.Domain == applyModel.Domain && 
-                                   c.IsWildcard == applyModel.IsWildcard &&
-                                   c.AcmeStatus >= AcmeProcessStatus.Initializing && 
-                                   c.AcmeStatus < AcmeProcessStatus.Completed);
-
-            if (pendingCertificate != null)
+            var hasPending = await CertificateRepository.HasPendingCertificateAsync(applyModel.Domain, applyModel.IsWildcard);
+            if (hasPending)
             {
                 IsSuccess = false;
                 StatusMessage = $"域名 {applyModel.Domain} 已有证书正在申请中，请稍后再试";

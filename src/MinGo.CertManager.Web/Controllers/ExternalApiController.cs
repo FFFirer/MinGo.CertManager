@@ -45,14 +45,8 @@ public class ExternalApiController : ControllerBase
         try
         {
             // 检查同一域名是否已有证书正在申请中
-            var existingCertificates = await _certificateRepository.GetAllAsync();
-            var pendingCertificate = existingCertificates
-                .FirstOrDefault(c => c.Domain == request.Domain && 
-                                   c.IsWildcard == request.IsWildcard &&
-                                   c.AcmeStatus >= AcmeProcessStatus.Initializing && 
-                                   c.AcmeStatus < AcmeProcessStatus.Completed);
-
-            if (pendingCertificate != null)
+            var hasPending = await _certificateRepository.HasPendingCertificateAsync(request.Domain, request.IsWildcard);
+            if (hasPending)
             {
                 return BadRequest(new {
                     Success = false,

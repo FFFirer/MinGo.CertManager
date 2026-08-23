@@ -15,6 +15,7 @@ public interface ICertificateRepository
     Task<List<Certificate>> GetByStatusAsync(CertificateStatus status);
     Task<List<Certificate>> SearchByDomainAsync(string domain);
     Task<Certificate?> GetLatestValidCertificateByDomainAsync(string domain);
+    Task<bool> HasPendingCertificateAsync(string domain, bool isWildcard);
     Task<Certificate> AddAsync(Certificate certificate);
     Task<Certificate> UpdateAsync(Certificate certificate);
     Task DeleteAsync(Guid id);
@@ -61,6 +62,15 @@ public class CertificateRepository : ICertificateRepository
             .Where(c => c.Domain == domain && c.Status == CertificateStatus.Active)
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync();
+    }
+
+    public async Task<bool> HasPendingCertificateAsync(string domain, bool isWildcard)
+    {
+        return await _context.Certificates
+            .AnyAsync(c => c.Domain == domain &&
+                           c.IsWildcard == isWildcard &&
+                           c.AcmeStatus >= AcmeProcessStatus.Initializing &&
+                           c.AcmeStatus < AcmeProcessStatus.Completed);
     }
 
     public async Task<Certificate> AddAsync(Certificate certificate)
