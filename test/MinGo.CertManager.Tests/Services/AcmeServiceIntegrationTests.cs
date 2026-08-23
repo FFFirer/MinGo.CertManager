@@ -404,30 +404,17 @@ public class AcmeServiceIntegrationTests
     // ============================================================
     // SplitDomainName 单元测试
     //
-    // 算法说明（简化版，未使用 Public Suffix List）：
-    // - 段数 >= 4 时，取最后 3 段为根域（覆盖 .co.uk 等多段后缀场景）
-    // - 段数 < 4 时，取最后 2 段为根域
-    //
-    // 这种简化算法的局限性：
-    // - a.b.example.com（4段）→ 根域 = "b.example.com"（理想应为 "example.com"）
-    // - 但 a.b.example.co.uk（5段）→ 根域 = "example.co.uk" ✓
-    // - 对于常见的 3 段域名（www.example.com）结果是正确的
-    //
-    // 如需精确的根域识别，应引入 Public Suffix List 实现
+    // 算法：始终取最后 2 段为根域名（如 example.com）。
     // ============================================================
 
     [Theory]
     [InlineData("example.com", "", "example.com")]
     [InlineData("www.example.com", "www", "example.com")]
-    // 4 段（a.b.example.com）: index=1 → rr="a", root="b.example.com"
-    [InlineData("a.b.example.com", "a", "b.example.com")]
-    // 5 段（a.b.c.example.com）: index=2 → rr="a.b", root="c.example.com"
-    [InlineData("a.b.c.example.com", "a.b", "c.example.com")]
+    [InlineData("a.b.example.com", "a.b", "example.com")]
+    [InlineData("a.b.c.example.com", "a.b.c", "example.com")]
     [InlineData("*.example.com", "*", "example.com")]
-    // 5 段（a.b.example.co.uk）: index=2 → rr="a.b", root="example.co.uk"
-    [InlineData("a.b.example.co.uk", "a.b", "example.co.uk")]
-    // 6 段: index=3 → rr="a.b.c", root="example.com.cn"
-    [InlineData("a.b.c.example.com.cn", "a.b.c", "example.com.cn")]
+    [InlineData("gitea.private.fffirer.top", "gitea.private", "fffirer.top")]
+    [InlineData("sub.example.xyz", "sub", "example.xyz")]
     public void SplitDomainName_ShouldExtractSubdomainAndRoot(string input, string expectedRr, string expectedRoot)
     {
         var (rr, root) = AcmeService.SplitDomainName(input);
@@ -438,10 +425,8 @@ public class AcmeServiceIntegrationTests
     [Theory]
     [InlineData("example.com", "example.com")]
     [InlineData("www.example.com", "example.com")]
-    // 5段 → 最后3段为根域
-    [InlineData("a.b.c.example.com", "c.example.com")]
-    [InlineData("test.example.co.uk", "example.co.uk")]
-    [InlineData("a.b.test.example.co.uk", "example.co.uk")]
+    [InlineData("a.b.c.example.com", "example.com")]
+    [InlineData("gitea.private.fffirer.top", "fffirer.top")]
     public void SplitDomainName_RootShouldBeRegistrableDomain(string input, string expectedRoot)
     {
         var (_, root) = AcmeService.SplitDomainName(input);

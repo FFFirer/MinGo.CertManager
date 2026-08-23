@@ -300,19 +300,15 @@ public class AcmeService : IAcmeService
     }
 
     /// <summary>
-    /// 分割域名为子域名部分和根域名部分。
-    /// 对于多段公共后缀（如 .com.cn），取最后 3 段为根域名；否则取最后 2 段。
+    /// 分割域名为子域名部分（rr）和根域名部分（root）。
+    /// 始终取最后 2 段为根域名（如 example.com），其余为子域名部分。
     /// </summary>
     internal static (string rr, string root) SplitDomainName(string domainName)
     {
         var spans = domainName.Split('.');
 
-        // 当段数 >= 4 时（如 a.b.example.com），取最后 3 段为根域（b.example.com）
-        // 覆盖 .com.cn、.co.uk 等多段公共后缀场景
-        var index = spans.Length >= 4 ? spans.Length - 3 : spans.Length - 2;
-
-        var rr = string.Join(".", spans[..index]);
-        var domain = string.Join(".", spans[index..]);
+        var rr = string.Join(".", spans[..^2]);
+        var domain = string.Join(".", spans[^2..]);
 
         return (rr, domain);
     }
