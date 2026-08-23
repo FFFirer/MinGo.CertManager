@@ -99,3 +99,4 @@ node_modules/
 *.tsbuildinfo
 .opencode/worktree-session-state.json
 .omo/
+/.opencode/
