@@ -104,12 +104,7 @@ builder.Services.AddQuartz(q =>
             .WithIntervalInHours(24)
             .RepeatForever()));
 
-    // 注册证书申请作业（一次性作业，由控制器动态触发）
-    q.AddJob<CertificateRequestJob>(job =>
-    {
-        job.WithDescription("申请新证书");
-        job.StoreDurably(); // 没有默认触发器，必须标记为持久化
-    });
+    // CertificateRequestJob 由控制器/页面动态创建并触发，无需在此预注册
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
