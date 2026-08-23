@@ -3,8 +3,11 @@
 @using Microsoft.AspNetCore.Authorization
 @using MinGo.CertManager.Core.Entities
 @using Microsoft.AspNetCore.Components.Forms
-@using MinGo.CertManager.Core.Services
-@inject ICertificateService CertificateService
+@using MinGo.CertManager.Infrastructure.Repositories
+@using MinGo.CertManager.Infrastructure.Jobs
+@using Quartz
+@inject ICertificateRepository CertificateRepository
+@inject ISchedulerFactory SchedulerFactory
 @inject NavigationManager NavigationManager
 
 <PageTitle>申请证书</PageTitle>
@@ -76,6 +79,33 @@
                     </div>
                 </div>
             </EditForm>
+
+            @if (!string.IsNullOrEmpty(StatusMessage))
+            {
+                <div class="mt-4 p-4 rounded-md @(IsSuccess ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800")">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            @if (IsSuccess)
+                            {
+                                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                            }
+                            else
+                            {
+                                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                            }
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium">
+                                @StatusMessage
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -92,6 +122,8 @@
 
     private ApplyCertificateModel applyModel = new();
     private bool IsApplying { get; set; }
+    private string? StatusMessage { get; set; }
+    private bool IsSuccess { get; set; }
 
     private void NavigateToCertificates()
     {
@@ -103,30 +135,65 @@
         try
         {
             IsApplying = true;
+            StatusMessage = null;
 
-            var dnsProvider = new DnsProvider
+            // 检查同一域名是否已有证书正在申请中
+            var existingCertificates = await CertificateRepository.GetAllAsync();
+            var pendingCertificate = existingCertificates
+                .FirstOrDefault(c => c.Domain == applyModel.Domain && 
+                                   c.IsWildcard == applyModel.IsWildcard &&
+                                   c.AcmeStatus >= AcmeProcessStatus.Initializing && 
+                                   c.AcmeStatus < AcmeProcessStatus.Completed);
+
+            if (pendingCertificate != null)
+            {
+                IsSuccess = false;
+                StatusMessage = $"域名 {applyModel.Domain} 已有证书正在申请中，请稍后再试";
+                return;
+            }
+
+            // 创建证书记录
+            var certificate = new Certificate
             {
                 Id = Guid.NewGuid(),
-                ProviderType = DnsProviderType.Aliyun,
-                AccessKeyId = string.Empty,
-                AccessKeySecret = string.Empty,
-                RegionId = "cn-hangzhou",
+                Domain = applyModel.Domain,
+                IsWildcard = applyModel.IsWildcard,
+                UseStaging = applyModel.UseStaging,
+                Status = CertificateStatus.Pending,
+                AcmeStatus = AcmeProcessStatus.Initializing,
+                AcmeStatusMessage = "等待处理",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
-            await CertificateService.RequestCertificateAsync(
-                applyModel.Domain,
-                applyModel.IsWildcard,
-                dnsProvider,
-                applyModel.UseStaging
-            );
+            await CertificateRepository.AddAsync(certificate);
 
+            // 触发一次性作业
+            var scheduler = await SchedulerFactory.GetScheduler();
+            var jobDetail = JobBuilder.Create<CertificateRequestJob>()
+                .WithIdentity($"CertificateRequest-{certificate.Id}", "CertificateRequests")
+                .WithDescription($"申请证书: {certificate.Domain}")
+                .UsingJobData("CertificateId", certificate.Id)
+                .Build();
+
+            var trigger = TriggerBuilder.Create()
+                .WithIdentity($"CertificateRequestTrigger-{certificate.Id}", "CertificateRequests")
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(jobDetail, trigger);
+
+            IsSuccess = true;
+            StatusMessage = $"证书申请已提交！证书ID: {certificate.Id}。您可以在证书列表中查看申请进度。";
+            
+            // 3秒后跳转到证书列表
+            await Task.Delay(3000);
             NavigationManager.NavigateTo("/certificates");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            IsSuccess = false;
+            StatusMessage = $"申请失败: {ex.Message}";
         }
         finally
         {

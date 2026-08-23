@@ -5,6 +5,8 @@ using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Infrastructure.Repositories;
 using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Services;
+using MinGo.CertManager.Infrastructure.Jobs;
+using Quartz;
 
 namespace MinGo.CertManager.Web.Controllers;
 
@@ -16,17 +18,20 @@ public class ExternalApiController : ControllerBase
     private readonly IAcmeService _acmeService;
     private readonly IAliyunDnsService _aliyunDnsService;
     private readonly ICertificateRepository _certificateRepository;
+    private readonly ISchedulerFactory _schedulerFactory;
 
     public ExternalApiController(
         ICertificateService certificateService,
         IAcmeService acmeService,
         IAliyunDnsService aliyunDnsService,
-        ICertificateRepository certificateRepository)
+        ICertificateRepository certificateRepository,
+        ISchedulerFactory schedulerFactory)
     {
         _certificateService = certificateService;
         _acmeService = acmeService;
         _aliyunDnsService = aliyunDnsService;
         _certificateRepository = certificateRepository;
+        _schedulerFactory = schedulerFactory;
     }
 
     /// <summary>
@@ -39,29 +44,99 @@ public class ExternalApiController : ControllerBase
     {
         try
         {
-            var dnsProvider = new DnsProvider
+            // 检查同一域名是否已有证书正在申请中
+            var existingCertificates = await _certificateRepository.GetAllAsync();
+            var pendingCertificate = existingCertificates
+                .FirstOrDefault(c => c.Domain == request.Domain && 
+                                   c.IsWildcard == request.IsWildcard &&
+                                   c.AcmeStatus >= AcmeProcessStatus.Initializing && 
+                                   c.AcmeStatus < AcmeProcessStatus.Completed);
+
+            if (pendingCertificate != null)
+            {
+                return BadRequest(new {
+                    Success = false,
+                    Error = $"域名 {request.Domain} 已有证书正在申请中，请稍后再试"
+                });
+            }
+
+            // 创建证书记录
+            var certificate = new Certificate
             {
                 Id = Guid.NewGuid(),
-                ProviderType = DnsProviderType.Aliyun,
-                AccessKeyId = string.Empty, // 使用配置中的默认值
-                AccessKeySecret = string.Empty, // 使用配置中的默认值
-                RegionId = "cn-hangzhou",
+                Domain = request.Domain,
+                IsWildcard = request.IsWildcard,
+                UseStaging = request.UseStaging,
+                Status = CertificateStatus.Pending,
+                AcmeStatus = AcmeProcessStatus.Initializing,
+                AcmeStatusMessage = "等待处理",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
-            var certificate = await _certificateService.RequestCertificateAsync(
-                request.Domain,
-                request.IsWildcard,
-                dnsProvider,
-                request.UseStaging);
+            await _certificateRepository.AddAsync(certificate);
+
+            // 触发一次性作业
+            var scheduler = await _schedulerFactory.GetScheduler();
+            var jobDetail = JobBuilder.Create<CertificateRequestJob>()
+                .WithIdentity($"CertificateRequest-{certificate.Id}", "CertificateRequests")
+                .WithDescription($"申请证书: {certificate.Domain}")
+                .UsingJobData("CertificateId", certificate.Id)
+                .Build();
+
+            var trigger = TriggerBuilder.Create()
+                .WithIdentity($"CertificateRequestTrigger-{certificate.Id}", "CertificateRequests")
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(jobDetail, trigger);
 
             return Ok(new {
                 Success = true,
                 CertificateId = certificate.Id,
                 Domain = certificate.Domain,
                 Status = certificate.Status.ToString(),
+                AcmeStatus = certificate.AcmeStatus.ToString(),
+                Message = "证书申请已提交，请稍后查询状态"
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new {
+                Success = false,
+                Error = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// 查询证书申请状态
+    /// </summary>
+    /// <param name="certificateId">证书ID</param>
+    /// <returns>证书状态信息</returns>
+    [HttpGet("certificates/{certificateId}/status")]
+    public async Task<IActionResult> GetCertificateStatus(Guid certificateId)
+    {
+        try
+        {
+            var certificate = await _certificateRepository.GetByIdAsync(certificateId);
+            if (certificate == null)
+            {
+                return NotFound(new {
+                    Success = false,
+                    Error = "证书不存在"
+                });
+            }
+
+            return Ok(new {
+                Success = true,
+                CertificateId = certificate.Id,
+                Domain = certificate.Domain,
+                Status = certificate.Status.ToString(),
+                AcmeStatus = certificate.AcmeStatus.ToString(),
+                AcmeStatusMessage = certificate.AcmeStatusMessage,
                 CreatedAt = certificate.CreatedAt,
+                UpdatedAt = certificate.UpdatedAt,
                 ExpiresAt = certificate.ExpiresAt
             });
         }
