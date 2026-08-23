@@ -26,8 +26,8 @@
 
 示例：
 
-- `api_key`：`ak_live_3UuExy7HBmBqPjF9s4qYZwXc2kN8VrDa`
-- `api_secret`：`sk_live_Z6cKQX9t4G1nP2aB8wF0LmY3sV5rH7dJ`
+- `api_key`：`ak_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+- `api_secret`：`sk_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`
 
 ### 2. 存储表结构（示例）
 
