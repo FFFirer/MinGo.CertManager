@@ -121,14 +121,16 @@ var forwardedHeadersSettings = app.Services.GetRequiredService<IOptions<Forwarde
 app.Logger.LogInformation("Forwarded Headers Enabled: {Enabled}", forwardedHeadersSettings.Enabled);
 if (forwardedHeadersSettings.Enabled)
 {
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    var forwardedOptions = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor
                          | ForwardedHeaders.XForwardedProto
                          | ForwardedHeaders.XForwardedHost,
-        KnownIPNetworks = { },
-        KnownProxies = { }
-    });
+    };
+    // 清除默认的回环地址限制，接受来自任意代理的转发头
+    forwardedOptions.KnownIPNetworks.Clear();
+    forwardedOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedOptions);
 }
 
 
