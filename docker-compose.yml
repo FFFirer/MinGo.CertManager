@@ -2,11 +2,10 @@ version: '3.8'
 
 services:
   certmanager:
-    build: .
-    image: 1mingo/certmanager:dev
     build:
       context: .
       dockerfile: Dockerfile
+    image: 1mingo/certmanager:dev
     ports:
       - "8080:8080"
     environment:
@@ -16,6 +15,25 @@ services:
       - Acme__AccountEmail=your-email@example.com
       - AliyunDns__AccessKeyId=your-access-key-id
       - AliyunDns__AccessKeySecret=your-access-key-secret
+      # OTLP gRPC → Aspire Dashboard 容器内部端口 18889
+      - OpenTelemetry__OtlpEndpoint=http://aspire-dashboard:18889
+      - OpenTelemetry__OtlpProtocol=grpc
+      - OpenTelemetry__EnableOtlpExporter=true
+      # Serilog OTLP Sink → Aspire Dashboard（Logs 走 Serilog 导出）
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
     volumes:
       - ./data:/app/data
+    depends_on:
+      - aspire-dashboard
+    restart: unless-stopped
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    environment:
+      # 开发环境关闭认证，直接访问 Dashboard
+      - ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true
+    ports:
+      - "18888:18888"  # Dashboard UI
+      - "4317:18889"   # OTLP/gRPC（宿主机 4317 → 容器 18889）
+      - "4318:18890"   # OTLP/HTTP（宿主机 4318 → 容器 18890）
     restart: unless-stopped

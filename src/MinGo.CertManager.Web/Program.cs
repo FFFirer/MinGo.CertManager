@@ -112,6 +112,9 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 // 注册第三方 OAuth 登录提供程序（GitHub、Google 等）
 builder.Services.AddOAuthLoginProviders(builder.Configuration);
 
+// OpenTelemetry: Logs / Metrics / Traces → OTLP Exporter
+builder.Services.AddOpenTelemetry(builder.Configuration);
+
 var app = builder.Build();
 
 // 反向代理支持：按配置启用 ForwardedHeaders 中间件
@@ -166,6 +169,11 @@ app.MapControllers();
 app.MapRazorPages();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+
+if (builder.Configuration.GetValue<bool>("OpenTelemetry:EnablePrometheusExporter"))
+{
+    app.MapPrometheusScrapingEndpoint();
+}
 
 Log.Information("Application started successfully");
 
