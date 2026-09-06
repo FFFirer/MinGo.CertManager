@@ -5,7 +5,7 @@ namespace MinGo.CertManager.Core.Messaging;
 /// <summary>
 /// 证书申请命令
 /// </summary>
-[MessageContract(Id = "a1b2c3d4-0001-0001-0001-000000000001", Version = "1.0", Kind = MessageKind.Command)]
+[MessageContract(Id = "certmanager.certificate.request", Version = "1", Kind = MessageKind.Command)]
 public class RequestCertificateCommand : ICommand
 {
     /// <summary>

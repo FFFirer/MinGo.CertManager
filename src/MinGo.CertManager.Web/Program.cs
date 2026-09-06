@@ -119,11 +119,11 @@ var messagingEnabled = builder.Configuration.GetValue<bool>("Messaging:Enabled")
 if (messagingEnabled)
 {
     builder.Services.AddMessaging(builder.Configuration)
-        .AddConsumer(typeof(MinGo.CertManager.Application.Consumers.CertificateRequestConsumer).Assembly)
-        .UseSimpleMessageBroker();
+        .UseSimpleMessageBroker()
+        .AddPublishers()
+        .AddConsumer(typeof(MinGo.CertManager.Application.Consumers.CertificateRequestConsumer).Assembly);
 
-    builder.Services.Configure<SimpleMessageBrokerIntegrationOptions>(
-        builder.Configuration.GetSection("SimpleMessageBroker"));
+    builder.AddMessagingHost();
 }
 
 Log.Information("Messaging {Status}", messagingEnabled ? "enabled" : "disabled");

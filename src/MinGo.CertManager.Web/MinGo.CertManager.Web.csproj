@@ -18,6 +18,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="MinGo.Messaging.Core" Version="0.0.3" />
+    <PackageReference Include="MinGo.Messaging.Hosting" Version="0.0.3" />
     <PackageReference Include="MinGo.Messaging.SimpleMessageBroker" Version="0.0.3" />
     <PackageReference Include="Quartz.Extensions.Hosting" Version="3.13.1" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
