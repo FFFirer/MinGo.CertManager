@@ -4,20 +4,26 @@
 @using MinGo.CertManager.Core.Entities
 @using MinGo.CertManager.Infrastructure.Repositories
 @using MinGo.CertManager.Core.Services
+@using MinGo.CertManager.Core.Messaging
+@using MinGo.Messaging
+
 @inject ICertificateRepository CertificateRepository
 @inject ICertificateService CertificateService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject IServiceScopeFactory ServiceScopeFactory
 
-<PageHeader 
-    Title="证书列表"
-    Description="查看和管理您的SSL证书">
+<PageHeader Title="证书列表" Description="查看和管理您的SSL证书">
     <Actions>
         <button class="btn btn-primary" @onclick="NavigateToApply">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                 stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             申请证书
+        </button>
+        <button class="btn btn-primary" @onclick="TestPublish">
+            Test
         </button>
     </Actions>
 </PageHeader>
@@ -33,15 +39,18 @@
                 <option value="Expired" selected="@(filterStatus == CertificateStatus.Expired)">已过期</option>
                 <option value="Failed" selected="@(filterStatus == CertificateStatus.Failed)">失败</option>
             </select>
-            <input type="text" class="input flex-1" placeholder="搜索域名" @bind="searchDomain" @oninput="OnSearchDomainChange" />
+            <input type="text" class="input flex-1" placeholder="搜索域名" @bind="searchDomain"
+                   @oninput="OnSearchDomainChange" />
         </div>
     </div>
 
     @if (certificates == null || certificates.Count == 0)
     {
         <div class="text-center py-12 text-muted-foreground">
-            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-muted-foreground mb-4" fill="none"
+                 viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <p>暂无证书</p>
         </div>
@@ -61,7 +70,8 @@
                                     {
                                         <span class="badge badge-info">泛域名</span>
                                     }
-                                    <span class="badge @GetStatusBadgeClass((CertificateStatus)cert.Status)">@GetStatusText((CertificateStatus)cert.Status)</span>
+                                    <span
+                                    class="badge @GetStatusBadgeClass((CertificateStatus)cert.Status)">@GetStatusText((CertificateStatus)cert.Status)</span>
                                 </div>
                             </div>
                         </div>
@@ -89,7 +99,8 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 ml-4">
-                        @if (cert.Status == CertificateStatus.Active || cert.Status == CertificateStatus.Expiring || cert.Status == CertificateStatus.Expired)
+                        @if (cert.Status == CertificateStatus.Active || cert.Status == CertificateStatus.Expiring || cert.Status
+                == CertificateStatus.Expired)
                         {
                             <button class="btn btn-primary" @onclick="@(() => ShowExportDialog(cert))">导出</button>
                         }
@@ -104,7 +115,8 @@
     }
 </div>
 
-<ExportModal IsVisible="@showExportModal" Certificate="@selectedCertificate" OnClose="HideExportDialog" OnExport="HandleExport" />
+<ExportModal IsVisible="@showExportModal" Certificate="@selectedCertificate" OnClose="HideExportDialog"
+             OnExport="HandleExport" />
 
 @code {
     private List<Certificate> certificates = new();
@@ -208,6 +220,16 @@
     {
         searchDomain = e.Value?.ToString() ?? string.Empty;
         await LoadCertificates();
+    }
+
+    private void TestPublish()
+    {
+        using var scope = ServiceScopeFactory.CreateScope();
+        var publisher = scope.ServiceProvider.GetService<IMessagePublisher>();
+        if (publisher != null)
+        {
+            publisher.PublishAsync(new CustomEvent { EventId = Guid.NewGuid().ToString() }).ConfigureAwait(false);
+        }
     }
 
     private void NavigateToApply()

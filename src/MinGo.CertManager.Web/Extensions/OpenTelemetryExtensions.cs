@@ -36,7 +36,6 @@ public static class OpenTelemetryExtensions
                     .AddSqlClientInstrumentation(options =>
                     {
                         options.RecordException = true;
-                        options.SetDbStatementForText = true;
                     });
 
                 if (otelSection.GetValue<bool>("EnableOtlpExporter", true))

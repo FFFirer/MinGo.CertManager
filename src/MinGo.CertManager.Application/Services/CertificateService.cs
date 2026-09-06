@@ -19,6 +19,7 @@ using Org.BouncyCastle.X509;
 using MinGo.CertManager.Infrastructure.Configuration;
 using MinGo.CertManager.Core.Messaging;
 using MinGo.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MinGo.CertManager.Application.Services;
 
@@ -42,7 +43,8 @@ public class CertificateService : ICertificateService
         ILoggerFactory loggerFactory,
         IOptions<CertificateSettings> certificateSettings,
         IAliyunDnsService aliyunDnsService,
-        IMessagePublisher? messagePublisher = null)
+        IMessagePublisher? messagePublisher = null,
+        IServiceProvider? serviceProvider = null)
     {
         _certificateRepository = certificateRepository;
         _acmeService = acmeService;
