@@ -9,6 +9,8 @@ using MinGo.CertManager.Application.Services;
 using MinGo.CertManager.Infrastructure.Jobs;
 using MinGo.CertManager.Web.Extensions;
 using MinGo.CertManager.Web.Middleware;
+using MinGo.Messaging;
+using MinGo.Messaging.SimpleMessageBroker;
 using Quartz;
 using Serilog;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -111,6 +113,20 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 // 注册第三方 OAuth 登录提供程序（GitHub、Google 等）
 builder.Services.AddOAuthLoginProviders(builder.Configuration);
+
+// MinGo.Messaging 消息代理（通过 Messaging:Enabled 控制是否启用）
+var messagingEnabled = builder.Configuration.GetValue<bool>("Messaging:Enabled");
+if (messagingEnabled)
+{
+    builder.Services.AddMessaging(builder.Configuration)
+        .AddConsumer(typeof(MinGo.CertManager.Application.Consumers.CertificateRequestConsumer).Assembly)
+        .UseSimpleMessageBroker();
+
+    builder.Services.Configure<SimpleMessageBrokerIntegrationOptions>(
+        builder.Configuration.GetSection("SimpleMessageBroker"));
+}
+
+Log.Information("Messaging {Status}", messagingEnabled ? "enabled" : "disabled");
 
 // OpenTelemetry: Logs / Metrics / Traces → OTLP Exporter
 builder.Services.AddOpenTelemetry(builder.Configuration);

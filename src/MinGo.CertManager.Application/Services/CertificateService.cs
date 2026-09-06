@@ -17,6 +17,8 @@ using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 using MinGo.CertManager.Infrastructure.Configuration;
+using MinGo.CertManager.Core.Messaging;
+using MinGo.Messaging;
 
 namespace MinGo.CertManager.Application.Services;
 
@@ -31,6 +33,7 @@ public class CertificateService : ICertificateService
     private readonly ILoggerFactory _loggerFactory;
     private readonly CertificateSettings _certificateSettings;
     private readonly IAliyunDnsService _aliyunDnsService;
+    private readonly IMessagePublisher? _messagePublisher;
 
     public CertificateService(
         ICertificateRepository certificateRepository,
@@ -38,7 +41,8 @@ public class CertificateService : ICertificateService
         ILogger<CertificateService> logger,
         ILoggerFactory loggerFactory,
         IOptions<CertificateSettings> certificateSettings,
-        IAliyunDnsService aliyunDnsService)
+        IAliyunDnsService aliyunDnsService,
+        IMessagePublisher? messagePublisher = null)
     {
         _certificateRepository = certificateRepository;
         _acmeService = acmeService;
@@ -46,6 +50,7 @@ public class CertificateService : ICertificateService
         _loggerFactory = loggerFactory;
         _aliyunDnsService = aliyunDnsService;
         _certificateSettings = certificateSettings.Value;
+        _messagePublisher = messagePublisher;
     }
 
     public async Task<Certificate> RequestCertificateAsync(string domain, bool isWildcard, DnsProvider dnsProvider, bool useStaging = false)
@@ -133,6 +138,17 @@ public class CertificateService : ICertificateService
             await _certificateRepository.UpdateAsync(certificate);
 
             _logger.LogInformation("证书申请成功: CertificateId={CertificateId}, ExpiresAt={ExpiresAt}", certificate.Id, certificate.ExpiresAt);
+
+            // 发布证书完成事件
+            if (_messagePublisher != null)
+            {
+                await _messagePublisher.PublishAsync(new CertificateCompletedEvent
+                {
+                    CertificateId = certificate.Id,
+                    Domain = certificate.Domain,
+                    ExpiresAt = certificate.ExpiresAt
+                }, CancellationToken.None);
+            }
         }
         catch (Exception ex)
         {
@@ -140,6 +156,18 @@ public class CertificateService : ICertificateService
             certificate.Status = CertificateStatus.Failed;
             certificate.UpdatedAt = DateTime.UtcNow;
             await _certificateRepository.UpdateAsync(certificate);
+
+            // 发布证书申请失败事件
+            if (_messagePublisher != null)
+            {
+                await _messagePublisher.PublishAsync(new CertificateFailedEvent
+                {
+                    CertificateId = certificate.Id,
+                    Domain = certificate.Domain,
+                    ErrorMessage = ex.Message
+                }, CancellationToken.None);
+            }
+
             throw;
         }
     }
