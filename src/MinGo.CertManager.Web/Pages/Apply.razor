@@ -7,7 +7,7 @@
 @using MinGo.CertManager.Infrastructure.Jobs
 @using Quartz
 @inject ICertificateRepository CertificateRepository
-@inject ISchedulerFactory SchedulerFactory
+@inject global::Quartz.ISchedulerFactory SchedulerFactory
 @inject NavigationManager NavigationManager
 
 <PageTitle>申请证书</PageTitle>
@@ -164,13 +164,13 @@
 
             // 触发一次性作业
             var scheduler = await SchedulerFactory.GetScheduler();
-            var jobDetail = JobBuilder.Create<CertificateRequestJob>()
+            var jobDetail = global::Quartz.JobBuilder.Create<CertificateRequestJob>()
                 .WithIdentity($"CertificateRequest-{certificate.Id}", "CertificateRequests")
                 .WithDescription($"申请证书: {certificate.Domain}")
                 .UsingJobData("CertificateId", certificate.Id)
                 .Build();
-
-            var trigger = TriggerBuilder.Create()
+            
+            var trigger = global::Quartz.TriggerBuilder.Create()
                 .WithIdentity($"CertificateRequestTrigger-{certificate.Id}", "CertificateRequests")
                 .StartNow()
                 .Build();

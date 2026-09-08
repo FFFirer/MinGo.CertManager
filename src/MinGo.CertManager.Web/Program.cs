@@ -11,6 +11,7 @@ using MinGo.CertManager.Web.Extensions;
 using MinGo.CertManager.Web.Middleware;
 using MinGo.Messaging;
 using MinGo.Messaging.SimpleMessageBroker;
+using MinGo.Quartz.Agent;
 using Quartz;
 using Serilog;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -78,6 +79,8 @@ builder.Services.Configure<AliyunDnsSettings>(
     builder.Configuration.GetSection(AliyunDnsSettings.SectionName));
 builder.Services.Configure<QuartzSettings>(
     builder.Configuration.GetSection(QuartzSettings.SectionName));
+builder.Services.Configure<QuartzAgentSettings>(
+    builder.Configuration.GetSection(QuartzAgentSettings.SectionName));
 builder.Services.Configure<ApiKeySettings>(
     builder.Configuration.GetSection(ApiKeySettings.SectionName));
 builder.Services.Configure<ForwardedHeadersSettings>(
@@ -110,6 +113,20 @@ builder.Services.AddQuartz(q =>
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
+// MinGo.Quartz.Agent SDK（通过 QuartzAgent:Enabled 控制是否启用）
+// 启用后：
+//   - 自动挂载 L1 可观测监听器（OpenTelemetry span/metric，JobDataMap 敏感字段脱敏）
+//   - 注册 Agent 服务（心跳/上报/日志）并暴露 /api/agent/... Minimal API
+//   - SDK 从顶级 Agent / Platform / Quartz / Logging 配置节绑定参数（可选加载 config.yaml）
+var quartzAgentSettings = builder.Configuration
+    .GetSection(QuartzAgentSettings.SectionName)
+    .Get<QuartzAgentSettings>() ?? new QuartzAgentSettings();
+if (quartzAgentSettings.Enabled)
+{
+    builder.AddMinGoAgent();
+}
+Log.Information("Quartz Agent {Status}", quartzAgentSettings.Enabled ? "enabled" : "disabled");
 
 // 注册第三方 OAuth 登录提供程序（GitHub、Google 等）
 builder.Services.AddOAuthLoginProviders(builder.Configuration);
@@ -185,6 +202,11 @@ app.MapControllers();
 app.MapRazorPages();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+
+if (quartzAgentSettings.Enabled)
+{
+    app.MapMinGoAgentApi(quartzAgentSettings.ApiPrefix);
+}
 
 if (builder.Configuration.GetValue<bool>("OpenTelemetry:EnablePrometheusExporter"))
 {
