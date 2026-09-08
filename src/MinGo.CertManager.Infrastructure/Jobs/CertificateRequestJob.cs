@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Infrastructure.Repositories;
 using MinGo.CertManager.Core.Services;
+using MinGo.Quartz.Agent.Abstractions.Attributes;
 using Quartz;
 
 namespace MinGo.CertManager.Infrastructure.Jobs;
@@ -26,9 +27,16 @@ public class CertificateRequestJob : IJob
         _logger = logger;
     }
 
+    /// <summary>
+    /// 待申请证书的数据库主键 ID。
+    /// 由 Quartz 从 JobDataMap 自动注入，并通过 MinGo.Quartz.Agent 的参数发现机制暴露到作业清单。
+    /// </summary>
+    [JobParameter("CertificateId", Required = true, Description = "待申请证书的数据库主键 ID", Label = "证书 ID")]
+    public Guid CertificateId { get; set; }
+
     public async Task Execute(IJobExecutionContext context)
     {
-        var certificateId = context.MergedJobDataMap.GetGuid("CertificateId");
+        var certificateId = CertificateId;
         _logger.LogInformation("Starting certificate request job for CertificateId: {CertificateId}", certificateId);
 
         var certificate = await _certificateRepository.GetByIdAsync(certificateId);
