@@ -1,0 +1,176 @@
+@page "/dns-providers"
+@attribute [Authorize]
+@using MinGo.CertManager.Core.Entities
+@using MinGo.CertManager.Core.Services
+@using MinGo.CertManager.Application.Services
+@inject IDnsProviderConsoleService ConsoleService
+
+<PageHeader Title="DNS 供应商"
+            Description="查看内置 DNS 提供商连接状态；凭据来自部署配置，不在界面修改">
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="mb-4 p-4 rounded-md @(isSuccess ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800")">
+        @statusMessage
+    </div>
+}
+
+<div class="space-y-4">
+    @foreach (var item in catalog)
+    {
+        var config = item.ImplementationStatus == DnsProviderImplementationStatus.BuiltIn
+            ? ConsoleService.GetConfigView(item.ProviderType)
+            : null;
+        var health = healthResults.TryGetValue(item.ProviderType, out var h) ? h : null;
+
+        <div class="card">
+            <div class="p-6">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-lg font-semibold">@item.DisplayName</h2>
+                        <div class="flex flex-wrap items-center gap-2 mt-2">
+                            @if (item.ImplementationStatus == DnsProviderImplementationStatus.BuiltIn)
+                            {
+                                <span class="badge badge-success">内置</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-outline">规划中</span>
+                            }
+                            @if (config is not null)
+                            {
+                                @if (config.State == ProviderConfigState.Configured)
+                                {
+                                    <span class="badge badge-info">已配置</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warning">未配置</span>
+                                }
+                            }
+                        </div>
+                    </div>
+                    @if (item.ImplementationStatus == DnsProviderImplementationStatus.BuiltIn)
+                    {
+                        <button class="btn btn-primary"
+                                disabled="@(isBusy || config?.State != ProviderConfigState.Configured)"
+                                @onclick="() => TestConnectionAsync(item.ProviderType)">
+                            @if (isBusy && testingType == item.ProviderType)
+                            {
+                                <span>体检中...</span>
+                            }
+                            else
+                            {
+                                <span>测试连接</span>
+                            }
+                        </button>
+                    }
+                </div>
+
+                @if (item.ImplementationStatus == DnsProviderImplementationStatus.Planned)
+                {
+                    <p class="text-muted-foreground">暂未内置实现，敬请期待。</p>
+                }
+                else if (config is not null)
+                {
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm mb-4">
+                        <div>
+                            <span class="text-muted-foreground">凭据来源</span>
+                            <span class="ml-2 font-mono">@config.ConfigSectionName</span>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">AccessKeyId</span>
+                            <span class="ml-2 font-mono">@(string.IsNullOrEmpty(config.MaskedAccessKeyId) ? "—" : config.MaskedAccessKeyId)</span>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">AccessKeySecret</span>
+                            <span class="ml-2">@(config.HasAccessKeySecret ? "已提供" : "未提供")</span>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">Region</span>
+                            <span class="ml-2">@(string.IsNullOrEmpty(config.RegionId) ? "—" : config.RegionId)</span>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <span class="text-muted-foreground">Endpoint</span>
+                            <span class="ml-2 font-mono break-all">@(string.IsNullOrEmpty(config.Endpoint) ? "—" : config.Endpoint)</span>
+                        </div>
+                    </div>
+
+                    @if (health is not null)
+                    {
+                        <div class="mb-4 p-3 rounded-md @GetHealthBannerClass(health.Status)">
+                            <div class="flex items-start gap-2">
+                                <span class="font-medium">@GetHealthTitle(health.Status)</span>
+                                <span class="text-sm">@health.Message</span>
+                            </div>
+                            <p class="text-xs mt-1 opacity-80">最近体检：@health.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</p>
+                        </div>
+                    }
+
+                    <details>
+                        <summary class="cursor-pointer text-primary text-sm">查看配置说明</summary>
+                        <pre class="mt-2 p-3 rounded-md bg-accent/40 text-xs overflow-x-auto whitespace-pre-wrap">@config.ConfigDocHint</pre>
+                    </details>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<DnsProviderCatalogItem> catalog = new();
+    private readonly Dictionary<DnsProviderType, ProviderHealthResult> healthResults = new();
+
+    private bool isBusy;
+    private DnsProviderType? testingType;
+    private string? statusMessage;
+    private bool isSuccess = true;
+
+    protected override void OnInitialized()
+    {
+        catalog = ConsoleService.GetCatalog().ToList();
+    }
+
+    private async Task TestConnectionAsync(DnsProviderType providerType)
+    {
+        isBusy = true;
+        testingType = providerType;
+        statusMessage = null;
+        try
+        {
+            var result = await ConsoleService.TestConnectionAsync(providerType);
+            healthResults[providerType] = result;
+
+            isSuccess = result.Status == ProviderHealthStatus.Success;
+            statusMessage = result.Message;
+        }
+        catch (Exception ex)
+        {
+            isSuccess = false;
+            statusMessage = $"体检失败：{ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            testingType = null;
+        }
+    }
+
+    private static string GetHealthBannerClass(ProviderHealthStatus status) => status switch
+    {
+        ProviderHealthStatus.Success => "bg-green-50 text-green-800",
+        ProviderHealthStatus.NotConfigured => "bg-yellow-50 text-yellow-800",
+        _ => "bg-red-50 text-red-800"
+    };
+
+    private static string GetHealthTitle(ProviderHealthStatus status) => status switch
+    {
+        ProviderHealthStatus.Success => "✓ 连接正常",
+        ProviderHealthStatus.AuthFailed => "✗ 鉴权失败",
+        ProviderHealthStatus.ConnectionFailed => "✗ 连接失败",
+        ProviderHealthStatus.NotConfigured => "○ 未配置",
+        ProviderHealthStatus.NotSupported => "○ 不支持",
+        _ => "体检结果"
+    };
+}

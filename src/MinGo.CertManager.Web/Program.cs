@@ -75,6 +75,8 @@ builder.Services.AddScoped<IDomainProviderClient, AliyunDomainProviderClient>();
 builder.Services.AddScoped<IOperationLogService, OperationLogService>();
 builder.Services.AddScoped<IDomainSyncService, DomainSyncService>();
 builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
+builder.Services.AddSingleton<IDnsProviderCatalog, DnsProviderCatalog>();
+builder.Services.AddScoped<IDnsProviderConsoleService, DnsProviderConsoleService>();
 
 builder.Services.Configure<AcmeSettings>(
     builder.Configuration.GetSection(AcmeSettings.SectionName));

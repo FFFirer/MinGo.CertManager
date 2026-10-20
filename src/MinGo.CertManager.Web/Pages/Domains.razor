@@ -10,6 +10,7 @@
 @inject IDomainSyncService DomainSyncService
 @inject IOperationLogService OperationLogService
 @inject IDomainProviderClient ProviderClient
+@inject IDnsProviderConsoleService ProviderConsoleService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageHeader Title="域名管理" Description="基于提供商同步的域名资产、解析记录与操作流水">
@@ -435,6 +436,15 @@
 
     private async Task SyncAsync()
     {
+        // 凭据未配置时前置引导，避免透传供应商 API 异常
+        var config = ProviderConsoleService.GetConfigView(ProviderType);
+        if (config.State != ProviderConfigState.Configured)
+        {
+            isSuccess = false;
+            statusMessage = "凭据未配置，无法从提供商同步。请先到「DNS 供应商」完成 AliyunDns AccessKey 配置。";
+            return;
+        }
+
         isBusy = true;
         busyKind = "sync";
         statusMessage = null;
