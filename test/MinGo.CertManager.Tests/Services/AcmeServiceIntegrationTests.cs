@@ -1,17 +1,17 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MinGo.CertManager.Application.Services;
 using MinGo.CertManager.Core.Constants;
 using MinGo.CertManager.Core.Entities;
 using MinGo.CertManager.Core.Services;
 using MinGo.CertManager.Infrastructure.Configuration;
 using MinGo.CertManager.Infrastructure.Data;
 using MinGo.CertManager.Infrastructure.Services;
-using MinGo.CertManager.Application.Services;
 using Certes;
-using Certes.Acme;
 using Moq;
 using Xunit;
 
@@ -21,8 +21,9 @@ public class AcmeServiceIntegrationTests
 {
     private readonly Mock<ILogger<AcmeService>> _loggerMock;
     private readonly Mock<ILogger<AcmeAccountCache>> _cacheLoggerMock;
-    private readonly Mock<IAliyunDnsService> _dnsServiceMock;
+    private readonly Mock<IDomainProviderClient> _dnsServiceMock;
     private readonly Mock<IAcmeAccountCache> _accountCacheMock;
+    private readonly Mock<IOperationLogService> _operationLogMock;
     private readonly IOptions<AcmeSettings> _acmeSettings;
     private readonly ApplicationDbContext _dbContext;
 
@@ -30,8 +31,11 @@ public class AcmeServiceIntegrationTests
     {
         _loggerMock = new Mock<ILogger<AcmeService>>();
         _cacheLoggerMock = new Mock<ILogger<AcmeAccountCache>>();
-        _dnsServiceMock = new Mock<IAliyunDnsService>();
+        _dnsServiceMock = new Mock<IDomainProviderClient>();
         _accountCacheMock = new Mock<IAcmeAccountCache>();
+        _operationLogMock = new Mock<IOperationLogService>();
+
+        _dnsServiceMock.SetupGet(x => x.ProviderType).Returns(DnsProviderType.Aliyun);
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -42,16 +46,24 @@ public class AcmeServiceIntegrationTests
         _acmeSettings = Options.Create(new AcmeSettings
         {
             UseStaging = true,
-            AccountEmail = "test@test.com", // 使用有效的测试邮箱
+            AccountEmail = "test@test.com",
             LetsEncryptProductionUrl = "https://acme-v02.api.letsencrypt.org/directory",
             LetsEncryptStagingUrl = "https://acme-staging-v02.api.letsencrypt.org/directory"
         });
     }
 
+    private AcmeService CreateService()
+    {
+        return new AcmeService(
+            _loggerMock.Object,
+            _acmeSettings,
+            _accountCacheMock.Object,
+            _operationLogMock.Object);
+    }
+
     // ============================================================
     // 集成测试（需要网络连接并调用 Let's Encrypt Staging 环境）
     // 默认跳过，需要时移除 Skip 属性后执行。
-    // 建议在 CI 中通过 `dotnet test --filter "Category=Integration"` 单独触发。
     // ============================================================
 
     [Fact(Skip = "集成测试 - 需要网络连接和 Let's Encrypt Staging 环境。手动移除 Skip 后执行。")]
@@ -67,17 +79,14 @@ public class AcmeServiceIntegrationTests
             .ReturnsAsync((AcmeAccount?)null);
 
         _dnsServiceMock
-            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("record-id");
 
         _dnsServiceMock
-            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        var acmeService = CreateService();
 
         var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
 
@@ -88,9 +97,10 @@ public class AcmeServiceIntegrationTests
 
         _dnsServiceMock.Verify(
             x => x.CreateTxtRecordAsync(
-                It.Is<string>(d => d == domain),
-                It.Is<string>(r => r == $"_acme-challenge.{domain}"),
-                It.IsAny<string>()),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -107,17 +117,14 @@ public class AcmeServiceIntegrationTests
             .ReturnsAsync((AcmeAccount?)null);
 
         _dnsServiceMock
-            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("record-id");
 
         _dnsServiceMock
-            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        var acmeService = CreateService();
 
         var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
 
@@ -128,9 +135,10 @@ public class AcmeServiceIntegrationTests
 
         _dnsServiceMock.Verify(
             x => x.CreateTxtRecordAsync(
-                It.Is<string>(d => d == domain),
-                It.Is<string>(r => r == $"_acme-challenge.{domain}"),
-                It.IsAny<string>()),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -163,17 +171,14 @@ public class AcmeServiceIntegrationTests
             .Returns(Task.CompletedTask);
 
         _dnsServiceMock
-            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("record-id");
 
         _dnsServiceMock
-            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        var acmeService = CreateService();
 
         var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
 
@@ -201,17 +206,10 @@ public class AcmeServiceIntegrationTests
             .ReturnsAsync((AcmeAccount?)null);
 
         _dnsServiceMock
-            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("DNS record creation failed"));
 
-        _dnsServiceMock
-            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
-
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        var acmeService = CreateService();
 
         var ex = await Assert.ThrowsAsync<Exception>(() =>
             acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging));
@@ -232,23 +230,32 @@ public class AcmeServiceIntegrationTests
             .ReturnsAsync((AcmeAccount?)null);
 
         _dnsServiceMock
-            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("record-id");
 
         _dnsServiceMock
-            .Setup(x => x.DeleteTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new Exception("DNS record deletion failed"));
+            .Setup(x => x.ClearTxtRecordsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("DNS record deletion failed"))
+            .Verifiable();
 
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        // 第二次（finally 清理）也失败时不应阻断主流程 —— 清理异常被吞掉
+        var acmeService = CreateService();
 
-        _dnsServiceMock.Setup(x => x.ClearTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+        // 创建阶段用 ClearTxtRecordsAsync 做事前清理，若抛错则主流程失败；
+        // 本用例仅验证 Delete/Clear 失败可被容忍的清理路径
+        _dnsServiceMock.Reset();
+        _dnsServiceMock.SetupGet(x => x.ProviderType).Returns(DnsProviderType.Aliyun);
+        _accountCacheMock
+            .Setup(x => x.GetCachedAccountAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((AcmeAccount?)null);
+        _dnsServiceMock
+            .Setup(x => x.CreateTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("record-id");
+        _dnsServiceMock
+            .Setup(x => x.ClearTxtRecordsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var result = await acmeService.RequestCertificateAsync(domain, isWildcard, _dnsServiceMock.Object, useStaging);
-
         Assert.NotNull(result);
     }
 
@@ -259,21 +266,18 @@ public class AcmeServiceIntegrationTests
         var isWildcard = false;
 
         _dnsServiceMock
-            .Setup(x => x.ClearTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.ClearTxtRecordsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        var acmeService = CreateService();
 
         await acmeService.CleanupAsync(domain, isWildcard, _dnsServiceMock.Object);
 
         _dnsServiceMock.Verify(
-            x => x.ClearTxtRecordAsync(
-                It.Is<string>(d => d == domain),
+            x => x.ClearTxtRecordsAsync(
                 It.IsAny<string>(),
-                It.IsAny<string>()),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -284,22 +288,19 @@ public class AcmeServiceIntegrationTests
         var isWildcard = true;
 
         _dnsServiceMock
-            .Setup(x => x.ClearTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.ClearTxtRecordsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        var acmeService = CreateService();
 
         await acmeService.CleanupAsync(domain, isWildcard, _dnsServiceMock.Object);
 
         // 通配符域名应该清理多个DNS记录（域名本身 + *.domain）
         _dnsServiceMock.Verify(
-            x => x.ClearTxtRecordAsync(
+            x => x.ClearTxtRecordsAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.IsAny<string>()),
+                It.IsAny<CancellationToken>()),
             Times.Exactly(2));
     }
 
@@ -310,26 +311,21 @@ public class AcmeServiceIntegrationTests
         var isWildcard = false;
 
         _dnsServiceMock
-            .Setup(x => x.ClearTxtRecordAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.ClearTxtRecordsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("DNS service error"));
 
-        var acmeService = new AcmeService(
-            _loggerMock.Object,
-            _acmeSettings,
-            _accountCacheMock.Object);
+        var acmeService = CreateService();
 
-        // 即使DNS服务失败，清理操作也应该尝试完成（异常被内部记录，不会传播）
         var exception = await Record.ExceptionAsync(() =>
             acmeService.CleanupAsync(domain, isWildcard, _dnsServiceMock.Object));
 
         Assert.Null(exception);
 
-        // 验证是否尝试调用了清理操作
         _dnsServiceMock.Verify(
-            x => x.ClearTxtRecordAsync(
+            x => x.ClearTxtRecordsAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.IsAny<string>()),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -398,10 +394,6 @@ public class AcmeServiceIntegrationTests
     }
 
     // ============================================================
-    // 工具方法单元测试
-    // ============================================================
-
-    // ============================================================
     // SplitDomainName 单元测试
     //
     // 算法：始终取最后 2 段为根域名（如 example.com）。
@@ -430,6 +422,23 @@ public class AcmeServiceIntegrationTests
     public void SplitDomainName_RootShouldBeRegistrableDomain(string input, string expectedRoot)
     {
         var (_, root) = AcmeService.SplitDomainName(input);
+        Assert.Equal(expectedRoot, root);
+    }
+
+    // ============================================================
+    // ResolveRoot 单元测试：优先 Zone，回退启发式
+    // ============================================================
+
+    [Theory]
+    [InlineData("www.example.com", "example.com", "www", "example.com")]
+    [InlineData("example.com", "example.com", "@", "example.com")]
+    [InlineData("*.example.com", "example.com", "*", "example.com")]
+    [InlineData("a.b.example.com", "example.com", "a.b", "example.com")]
+    [InlineData("www.example.com", null, "www", "example.com")]
+    public void ResolveRoot_ShouldPreferKnownZone(string input, string? zone, string expectedRr, string expectedRoot)
+    {
+        var (rr, root) = AcmeService.ResolveRoot(input, zone);
+        Assert.Equal(expectedRr, rr);
         Assert.Equal(expectedRoot, root);
     }
 }

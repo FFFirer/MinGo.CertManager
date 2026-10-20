@@ -20,20 +20,31 @@ public class AcmeService : IAcmeService
     private readonly ILogger<AcmeService> _logger;
     private readonly AcmeSettings _acmeSettings;
     private readonly IAcmeAccountCache _accountCache;
+    private readonly IOperationLogService _operationLogService;
 
     private AcmeContext? _acmeContext;
     private IKey? _accountKey;
     private readonly Dictionary<string, IOrderContext> _orders = new();
     private readonly Dictionary<string, IAuthorizationContext> _authorizations = new();
 
-    public AcmeService(ILogger<AcmeService> logger, IOptions<AcmeSettings> acmeSettings, IAcmeAccountCache accountCache)
+    public AcmeService(
+        ILogger<AcmeService> logger,
+        IOptions<AcmeSettings> acmeSettings,
+        IAcmeAccountCache accountCache,
+        IOperationLogService operationLogService)
     {
         _logger = logger;
         _acmeSettings = acmeSettings.Value;
         _accountCache = accountCache;
+        _operationLogService = operationLogService;
     }
 
-    public async Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false)
+    public async Task<CertificateResult> RequestCertificateAsync(
+        string domain,
+        bool isWildcard,
+        IDomainProviderClient dnsService,
+        bool useStaging = false,
+        string? zoneName = null)
     {
         _logger.LogInformation("开始ACME证书申请: Domain={Domain}, IsWildcard={IsWildcard}, Environment={Environment}",
             domain, isWildcard, useStaging ? "Staging" : "Production");
@@ -101,7 +112,7 @@ public class AcmeService : IAcmeService
                 _authorizations[authDomain] = authorization;
                 _logger.LogInformation("处理授权: Domain={AuthDomain}", authDomain);
 
-                await HandleDnsChallengeAsync(authorization, dnsService, authDomain);
+                await HandleDnsChallengeAsync(authorization, dnsService, authDomain, zoneName);
             }
 
             _logger.LogInformation("等待所有授权验证完成");
@@ -134,7 +145,7 @@ public class AcmeService : IAcmeService
             _logger.LogError(ex, "ACME证书申请失败: Domain={Domain}", domain);
             try
             {
-                await CleanupAsync(domain, isWildcard, dnsService);
+                await CleanupAsync(domain, isWildcard, dnsService, zoneName);
             }
             catch (Exception cleanupEx)
             {
@@ -150,7 +161,11 @@ public class AcmeService : IAcmeService
         return authz.Identifier.Value;
     }
 
-    private async Task HandleDnsChallengeAsync(IAuthorizationContext authorization, IAliyunDnsService dnsService, string domain)
+    private async Task HandleDnsChallengeAsync(
+        IAuthorizationContext authorization,
+        IDomainProviderClient dnsService,
+        string domain,
+        string? zoneName = null)
     {
         _logger.LogInformation("处理DNS01挑战: Domain={Domain}", domain);
 
@@ -168,19 +183,35 @@ public class AcmeService : IAcmeService
             return;
         }
 
-        var (rr, rootDomain) = SplitDomainName(domain);
+        var (rr, rootDomain) = ResolveRoot(domain, zoneName);
         var recordName = $"_acme-challenge.{rr}";
 
-        _logger.LogInformation("创建DNS TXT记录: Record={Record}", recordName);
+        _logger.LogInformation("创建DNS TXT记录: Record={Record}, Root={Root}", recordName, rootDomain);
 
         try
         {
-            await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsTxt);
-            await dnsService.CreateTxtRecordAsync(rootDomain, recordName, dnsTxt);
+            await dnsService.ClearTxtRecordsAsync(rootDomain, recordName);
+            var recordId = await dnsService.CreateTxtRecordAsync(rootDomain, recordName, dnsTxt);
+            await _operationLogService.LogAsync(
+                Core.Entities.OperationLogAction.DnsTxtCreated,
+                Core.Entities.OperationLogResult.Success,
+                dnsService.ProviderType,
+                "DomainRecord",
+                recordId,
+                domain,
+                $"创建 DNS-01 TXT: {recordName}.{rootDomain}");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "创建DNS TXT记录失败: Domain={Domain}, Record={Record}", domain, recordName);
+            await _operationLogService.LogAsync(
+                Core.Entities.OperationLogAction.DnsTxtCreated,
+                Core.Entities.OperationLogResult.Failed,
+                dnsService.ProviderType,
+                "DomainRecord",
+                null,
+                domain,
+                $"创建 DNS-01 TXT 失败: {recordName}.{rootDomain}: {ex.Message}");
             throw;
         }
 
@@ -207,11 +238,27 @@ public class AcmeService : IAcmeService
             try
             {
                 _logger.LogInformation("清理DNS TXT记录: Record={Record}", recordName);
-                await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsTxt);
+                await dnsService.ClearTxtRecordsAsync(rootDomain, recordName);
+                await _operationLogService.LogAsync(
+                    Core.Entities.OperationLogAction.DnsTxtDeleted,
+                    Core.Entities.OperationLogResult.Success,
+                    dnsService.ProviderType,
+                    "DomainRecord",
+                    null,
+                    domain,
+                    $"清理 DNS-01 TXT: {recordName}.{rootDomain}");
             }
             catch (Exception cleanupEx)
             {
                 _logger.LogError(cleanupEx, "清理DNS TXT记录失败: Domain={Domain}, Record={Record}", domain, recordName);
+                await _operationLogService.LogAsync(
+                    Core.Entities.OperationLogAction.DnsTxtDeleted,
+                    Core.Entities.OperationLogResult.Failed,
+                    dnsService.ProviderType,
+                    "DomainRecord",
+                    null,
+                    domain,
+                    $"清理 DNS-01 TXT 失败: {recordName}.{rootDomain}: {cleanupEx.Message}");
             }
         }
     }
@@ -299,19 +346,6 @@ public class AcmeService : IAcmeService
         await challenge.Validate();
     }
 
-    /// <summary>
-    /// 分割域名为子域名部分（rr）和根域名部分（root）。
-    /// 始终取最后 2 段为根域名（如 example.com），其余为子域名部分。
-    /// </summary>
-    internal static (string rr, string root) SplitDomainName(string domainName)
-    {
-        var spans = domainName.Split('.');
-
-        var rr = string.Join(".", spans[..^2]);
-        var domain = string.Join(".", spans[^2..]);
-
-        return (rr, domain);
-    }
 
     private async Task WaitForAllAuthorizationsAsync()
     {
@@ -380,7 +414,51 @@ public class AcmeService : IAcmeService
         }
     }
 
-    public async Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService)
+    /// <summary>
+    /// 分割域名为子域名部分（rr）和根域名部分（root）。
+    /// 启发式：取最后 2 段为根域名（如 example.com）。
+    /// 已知 Zone 时应优先使用 <see cref="ResolveRoot"/>。
+    /// </summary>
+    internal static (string rr, string root) SplitDomainName(string domainName)
+    {
+        var spans = domainName.Split('.');
+
+        var rr = string.Join(".", spans[..^2]);
+        var domain = string.Join(".", spans[^2..]);
+
+        return (rr, domain);
+    }
+
+    /// <summary>
+    /// 优先使用已购 Zone 定位根域；否则回退启发式切分。
+    /// </summary>
+    internal static (string rr, string root) ResolveRoot(string domainName, string? knownZone)
+    {
+        if (!string.IsNullOrWhiteSpace(knownZone))
+        {
+            var zone = knownZone.Trim().TrimEnd('.').ToLowerInvariant();
+            var name = domainName.Trim().TrimEnd('.').ToLowerInvariant();
+
+            if (name == zone)
+            {
+                return ("@", zone);
+            }
+
+            if (name.EndsWith("." + zone, StringComparison.Ordinal))
+            {
+                var rr = name[..^(zone.Length + 1)];
+                return (string.IsNullOrEmpty(rr) ? "@" : rr, zone);
+            }
+        }
+
+        return SplitDomainName(domainName);
+    }
+
+    public async Task CleanupAsync(
+        string domain,
+        bool isWildcard,
+        IDomainProviderClient dnsService,
+        string? zoneName = null)
     {
         _logger.LogInformation("清理ACME资源: Domain={Domain}, IsWildcard={IsWildcard}", domain, isWildcard);
 
@@ -394,21 +472,11 @@ public class AcmeService : IAcmeService
 
             foreach (var authDomain in domains)
             {
-                var (rr, rootDomain) = SplitDomainName(authDomain);
+                var (rr, rootDomain) = ResolveRoot(authDomain, zoneName);
                 var recordName = $"_acme-challenge.{rr}";
-                string? dnsKey = null;
-
-                if (_authorizations.TryGetValue(authDomain, out var authorization))
-                {
-                    var dnsChallenge = await GetDnsChallenge(authorization);
-                    if (dnsChallenge != null)
-                    {
-                        dnsKey = GetDnsRecord(dnsChallenge);
-                    }
-                }
 
                 _logger.LogInformation("删除DNS TXT记录: Record={Record}", recordName);
-                await dnsService.ClearTxtRecordAsync(rootDomain, recordName, dnsKey ?? string.Empty);
+                await dnsService.ClearTxtRecordsAsync(rootDomain, recordName);
             }
 
             _authorizations.Clear();

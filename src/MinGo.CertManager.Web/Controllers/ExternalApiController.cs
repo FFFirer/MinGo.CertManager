@@ -16,20 +16,20 @@ public class ExternalApiController : ControllerBase
 {
     private readonly ICertificateService _certificateService;
     private readonly IAcmeService _acmeService;
-    private readonly IAliyunDnsService _aliyunDnsService;
+    private readonly IDomainProviderClient _dnsProviderClient;
     private readonly ICertificateRepository _certificateRepository;
     private readonly ISchedulerFactory _schedulerFactory;
 
     public ExternalApiController(
         ICertificateService certificateService,
         IAcmeService acmeService,
-        IAliyunDnsService aliyunDnsService,
+        IDomainProviderClient dnsProviderClient,
         ICertificateRepository certificateRepository,
         ISchedulerFactory schedulerFactory)
     {
         _certificateService = certificateService;
         _acmeService = acmeService;
-        _aliyunDnsService = aliyunDnsService;
+        _dnsProviderClient = dnsProviderClient;
         _certificateRepository = certificateRepository;
         _schedulerFactory = schedulerFactory;
     }

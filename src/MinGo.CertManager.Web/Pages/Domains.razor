@@ -1,0 +1,523 @@
+@page "/domains"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using MinGo.CertManager.Core.Entities
+@using MinGo.CertManager.Core.Services
+@using MinGo.CertManager.Application.Services
+@using MinGo.CertManager.Infrastructure.Repositories
+
+@inject IDomainRepository DomainRepository
+@inject IDomainSyncService DomainSyncService
+@inject IOperationLogService OperationLogService
+@inject IDomainProviderClient ProviderClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageHeader Title="域名管理" Description="基于提供商同步的域名资产、解析记录与操作流水">
+    <Actions>
+        <button class="btn btn-primary" disabled="@isBusy" @onclick="SyncAsync">
+            @if (isBusy && busyKind == "sync")
+            {
+                <span>同步中...</span>
+            }
+            else
+            {
+                <span>从提供商同步</span>
+            }
+        </button>
+    </Actions>
+</PageHeader>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="mb-4 p-4 rounded-md @(isSuccess ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800")">
+        @statusMessage
+    </div>
+}
+
+<div class="card">
+    <div class="border-b border-border">
+        <div class="flex flex-wrap">
+            <button class="px-4 py-3 text-sm font-medium border-b-2 @(activeTab == "domains" ? "border-primary text-primary" : "border-transparent text-muted-foreground")"
+                    @onclick="ShowDomainsTab">
+                FQDN 域名
+            </button>
+            <button class="px-4 py-3 text-sm font-medium border-b-2 @(activeTab == "zones" ? "border-primary text-primary" : "border-transparent text-muted-foreground")"
+                    @onclick="ShowZonesTab">
+                已购域名 / 解析
+            </button>
+            <button class="px-4 py-3 text-sm font-medium border-b-2 @(activeTab == "logs" ? "border-primary text-primary" : "border-transparent text-muted-foreground")"
+                    @onclick="ShowLogsTab">
+                操作记录
+            </button>
+        </div>
+    </div>
+
+    @if (activeTab == "domains")
+    {
+        <div class="p-6 border-b border-border">
+            <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+                <div class="flex-1">
+                    <label class="label">状态</label>
+                    <select class="select w-full" value="@statusFilter" @onchange="OnStatusFilterChange">
+                        <option value="">全部状态</option>
+                        <option value="Active">有效</option>
+                        <option value="Removed">已移除</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="label">来源</label>
+                    <select class="select w-full" value="@sourceFilter" @onchange="OnSourceFilterChange">
+                        <option value="">全部来源</option>
+                        <option value="Synced">同步</option>
+                        <option value="Manual">手动</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="label">搜索 FQDN</label>
+                    <input class="input w-full" placeholder="www.example.com" @bind="fqdnSearch" @oninput="OnFqdnSearchChange" />
+                </div>
+                <button class="btn btn-secondary" @onclick="() => showAddForm = !showAddForm">
+                    手动添加 FQDN
+                </button>
+            </div>
+
+            @if (showAddForm)
+            {
+                <div class="mt-4 p-4 border border-border rounded-md bg-accent/30">
+                    <label class="label">FQDN（必须归属已同步的已购域名）</label>
+                    <div class="flex gap-2">
+                        <input class="input flex-1" placeholder="dev.example.com" @bind="newFqdn" />
+                        <input class="input flex-1" placeholder="备注（可选）" @bind="newRemark" />
+                        <button class="btn btn-primary" disabled="@isBusy" @onclick="AddManualAsync">添加</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (filteredDomains.Count == 0)
+        {
+            <div class="text-center py-12 text-muted-foreground">
+                <p>暂无域名资产，点右上角「从提供商同步」</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-border">
+                @foreach (var domain in filteredDomains)
+                {
+                    <div class="p-4 sm:p-6">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-semibold text-lg">@domain.Fqdn</h3>
+                                    @if (DomainNameHelper.IsWildcard(domain.Fqdn))
+                                    {
+                                        <span class="badge badge-info">泛域名</span>
+                                    }
+                                    <span class="badge @GetAssetBadgeClass(domain.Status)">@GetAssetStatusText(domain.Status)</span>
+                                    <span class="badge badge-outline">@(domain.Source == DomainAssetSource.Synced ? "同步" : "手动")</span>
+                                </div>
+                                <div class="mt-1 text-sm text-muted-foreground">
+                                    所属 Zone: <span class="font-medium text-foreground">@domain.ZoneName</span>
+                                    @if (!string.IsNullOrEmpty(domain.Remark))
+                                    {
+                                        <span> · @domain.Remark</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="text-xs text-muted-foreground">
+                                更新: @domain.UpdatedAt.ToString("yyyy-MM-dd HH:mm") UTC
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else if (activeTab == "zones")
+    {
+        <div class="p-6 border-b border-border">
+            <label class="label">选择已购域名查看解析记录</label>
+            <select class="select w-full sm:w-96" value="@selectedZone" @onchange="OnZoneChange">
+                <option value="">-- 选择 Zone --</option>
+                @foreach (var zone in zones)
+                {
+                    <option value="@zone.ZoneName">@zone.ZoneName (@GetAssetStatusText(zone.Status))</option>
+                }
+            </select>
+        </div>
+
+        @if (string.IsNullOrEmpty(selectedZone))
+        {
+            <div class="text-center py-12 text-muted-foreground">
+                <p>请选择已购域名</p>
+            </div>
+        }
+        else if (records.Count == 0)
+        {
+            <div class="text-center py-12 text-muted-foreground">
+                <p>该 Zone 暂无解析记录镜像</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-accent/40 text-left">
+                        <tr>
+                            <th class="px-4 py-3">RR</th>
+                            <th class="px-4 py-3">类型</th>
+                            <th class="px-4 py-3">值</th>
+                            <th class="px-4 py-3">TTL</th>
+                            <th class="px-4 py-3">推导 FQDN</th>
+                            <th class="px-4 py-3">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach (var record in records)
+                        {
+                            <tr>
+                                <td class="px-4 py-3 font-mono">@record.Rr</td>
+                                <td class="px-4 py-3">@record.RecordType</td>
+                                <td class="px-4 py-3 font-mono break-all">@record.Value</td>
+                                <td class="px-4 py-3">@record.Ttl</td>
+                                <td class="px-4 py-3">@record.Fqdn</td>
+                                <td class="px-4 py-3">
+                                    <span class="badge @GetAssetBadgeClass(record.Status)">@GetAssetStatusText(record.Status)</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="p-6 border-b border-border">
+            <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+                <div class="flex-1">
+                    <label class="label">动作</label>
+                    <select class="select w-full" value="@actionFilter" @onchange="OnActionFilterChange">
+                        <option value="">全部动作</option>
+                        @foreach (OperationLogAction action in Enum.GetValues<OperationLogAction>())
+                        {
+                            <option value="@action">@GetActionText(action)</option>
+                        }
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="label">目标名称</label>
+                    <input class="input w-full" placeholder="www.example.com" @bind="logTargetFilter" @oninput="OnLogTargetChange" />
+                </div>
+            </div>
+        </div>
+
+        @if (logs.Count == 0)
+        {
+            <div class="text-center py-12 text-muted-foreground">
+                <p>暂无操作记录</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-accent/40 text-left">
+                        <tr>
+                            <th class="px-4 py-3">时间 (UTC)</th>
+                            <th class="px-4 py-3">操作者</th>
+                            <th class="px-4 py-3">动作</th>
+                            <th class="px-4 py-3">目标</th>
+                            <th class="px-4 py-3">结果</th>
+                            <th class="px-4 py-3">摘要</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach (var log in logs)
+                        {
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap">@log.At.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td class="px-4 py-3">@log.Actor</td>
+                                <td class="px-4 py-3">@GetActionText(log.Action)</td>
+                                <td class="px-4 py-3">
+                                    <div>@log.TargetType</div>
+                                    <div class="text-muted-foreground text-xs">@log.TargetName</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="badge @(log.Result == OperationLogResult.Success ? "badge-info" : "badge-destructive")">
+                                        @(log.Result == OperationLogResult.Success ? "成功" : "失败")
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-xs text-muted-foreground max-w-md break-all">@log.Message</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-4 flex items-center justify-between text-sm text-muted-foreground">
+                <span>共 @logTotal 条，第 @(logSkip / LogPageSize + 1) 页</span>
+                <div class="flex gap-2">
+                    <button class="btn btn-secondary" disabled="@(logSkip == 0)" @onclick="PrevLogPage">上一页</button>
+                    <button class="btn btn-secondary" disabled="@(logSkip + LogPageSize >= logTotal)" @onclick="NextLogPage">下一页</button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private const int LogPageSize = 20;
+
+    private string activeTab = "domains";
+    private string? statusFilter;
+    private string? sourceFilter;
+    private string? fqdnSearch;
+    private string? actionFilter;
+    private string? logTargetFilter;
+    private string? selectedZone;
+    private string newFqdn = string.Empty;
+    private string? newRemark;
+    private bool showAddForm;
+    private bool isBusy;
+    private string? busyKind;
+    private string? statusMessage;
+    private bool isSuccess = true;
+
+    private List<Domain> domains = new();
+    private List<Domain> filteredDomains = new();
+    private List<DomainZone> zones = new();
+    private List<DomainRecord> records = new();
+    private List<OperationLog> logs = new();
+    private int logTotal;
+    private int logSkip;
+
+    private DnsProviderType ProviderType => ProviderClient.ProviderType;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDomainsAsync();
+        await LoadZonesAsync();
+        await LoadLogsAsync();
+    }
+
+    private async Task ShowDomainsTab() => await SwitchTab("domains");
+    private async Task ShowZonesTab() => await SwitchTab("zones");
+    private async Task ShowLogsTab() => await SwitchTab("logs");
+
+    private async Task SwitchTab(string tab)
+    {
+        activeTab = tab;
+        if (tab == "logs")
+        {
+            await LoadLogsAsync();
+        }
+        else if (tab == "zones")
+        {
+            await LoadZonesAsync();
+        }
+        else
+        {
+            await LoadDomainsAsync();
+        }
+    }
+
+    private async Task LoadDomainsAsync()
+    {
+        domains = await DomainRepository.GetDomainsAsync(ProviderType);
+        ApplyDomainFilter();
+    }
+
+    private void ApplyDomainFilter()
+    {
+        IEnumerable<Domain> query = domains;
+
+        if (!string.IsNullOrEmpty(statusFilter) && Enum.TryParse<DomainAssetStatus>(statusFilter, out var status))
+        {
+            query = query.Where(d => d.Status == status);
+        }
+
+        if (!string.IsNullOrEmpty(sourceFilter) && Enum.TryParse<DomainAssetSource>(sourceFilter, out var source))
+        {
+            query = query.Where(d => d.Source == source);
+        }
+
+        if (!string.IsNullOrWhiteSpace(fqdnSearch))
+        {
+            var term = fqdnSearch.Trim();
+            query = query.Where(d => d.Fqdn.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        filteredDomains = query.ToList();
+    }
+
+    private async Task LoadZonesAsync()
+    {
+        zones = await DomainRepository.GetZonesAsync(ProviderType);
+        if (!string.IsNullOrEmpty(selectedZone))
+        {
+            records = await DomainRepository.GetRecordsAsync(ProviderType, selectedZone);
+        }
+    }
+
+    private async Task LoadLogsAsync()
+    {
+        OperationLogAction? action = null;
+        if (!string.IsNullOrEmpty(actionFilter) && Enum.TryParse<OperationLogAction>(actionFilter, out var parsed))
+        {
+            action = parsed;
+        }
+
+        var (items, total) = await OperationLogService.QueryAsync(
+            action: action,
+            targetName: logTargetFilter,
+            skip: logSkip,
+            take: LogPageSize);
+        logs = items;
+        logTotal = total;
+    }
+
+    private async Task OnZoneChange(ChangeEventArgs e)
+    {
+        selectedZone = e.Value?.ToString();
+        records = string.IsNullOrEmpty(selectedZone)
+            ? new List<DomainRecord>()
+            : await DomainRepository.GetRecordsAsync(ProviderType, selectedZone);
+    }
+
+    private async Task OnStatusFilterChange(ChangeEventArgs e)
+    {
+        statusFilter = e.Value?.ToString();
+        ApplyDomainFilter();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnSourceFilterChange(ChangeEventArgs e)
+    {
+        sourceFilter = e.Value?.ToString();
+        ApplyDomainFilter();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnFqdnSearchChange(ChangeEventArgs e)
+    {
+        fqdnSearch = e.Value?.ToString();
+        ApplyDomainFilter();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnActionFilterChange(ChangeEventArgs e)
+    {
+        actionFilter = e.Value?.ToString();
+        logSkip = 0;
+        await LoadLogsAsync();
+    }
+
+    private async Task OnLogTargetChange(ChangeEventArgs e)
+    {
+        logTargetFilter = e.Value?.ToString();
+        logSkip = 0;
+        await LoadLogsAsync();
+    }
+
+    private async Task PrevLogPage()
+    {
+        logSkip = Math.Max(0, logSkip - LogPageSize);
+        await LoadLogsAsync();
+    }
+
+    private async Task NextLogPage()
+    {
+        logSkip += LogPageSize;
+        await LoadLogsAsync();
+    }
+
+    private async Task SyncAsync()
+    {
+        isBusy = true;
+        busyKind = "sync";
+        statusMessage = null;
+        try
+        {
+            var actor = await GetActorAsync();
+            var result = await DomainSyncService.SyncFromProviderAsync(actor);
+            isSuccess = true;
+            statusMessage =
+                $"同步完成：Zone +{result.ZonesAdded}/-{result.ZonesRemoved}，记录 +{result.RecordsUpserted}/-{result.RecordsRemoved}，FQDN +{result.DomainsAdded}/-{result.DomainsRemoved}";
+            await LoadDomainsAsync();
+            await LoadZonesAsync();
+            await LoadLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            isSuccess = false;
+            statusMessage = $"同步失败：{ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            busyKind = null;
+        }
+    }
+
+    private async Task AddManualAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newFqdn))
+        {
+            isSuccess = false;
+            statusMessage = "请输入 FQDN";
+            return;
+        }
+
+        isBusy = true;
+        busyKind = "add";
+        try
+        {
+            var actor = await GetActorAsync();
+            await DomainSyncService.AddManualDomainAsync(newFqdn, newRemark, actor);
+            isSuccess = true;
+            statusMessage = $"已添加 {newFqdn}";
+            newFqdn = string.Empty;
+            newRemark = null;
+            showAddForm = false;
+            await LoadDomainsAsync();
+            await LoadLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            isSuccess = false;
+            statusMessage = ex.Message;
+        }
+        finally
+        {
+            isBusy = false;
+            busyKind = null;
+        }
+    }
+
+    private async Task<string> GetActorAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return state.User.Identity?.Name ?? "system";
+    }
+
+    private static string GetAssetBadgeClass(DomainAssetStatus status) =>
+        status == DomainAssetStatus.Active ? "badge-info" : "badge-outline";
+
+    private static string GetAssetStatusText(DomainAssetStatus status) =>
+        status == DomainAssetStatus.Active ? "有效" : "已移除";
+
+    private static string GetActionText(OperationLogAction action) => action switch
+    {
+        OperationLogAction.ZoneSynced => "Zone 同步",
+        OperationLogAction.RecordSynced => "解析同步",
+        OperationLogAction.DomainSynced => "域名同步",
+        OperationLogAction.DomainAdded => "添加域名",
+        OperationLogAction.DomainRemoved => "移除域名",
+        OperationLogAction.DnsTxtCreated => "创建 TXT",
+        OperationLogAction.DnsTxtDeleted => "删除 TXT",
+        OperationLogAction.CertRequested => "证书申请",
+        _ => action.ToString()
+    };
+}

@@ -12,6 +12,7 @@ using MinGo.CertManager.Web.Middleware;
 using MinGo.Messaging;
 using MinGo.Messaging.SimpleMessageBroker;
 using MinGo.Quartz.Agent;
+using MinGo.ServiceRegistry.AspNetCore;
 using Quartz;
 using Serilog;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -65,10 +66,14 @@ builder.Services.ConfigureExternalCookie(options =>
 builder.Services.AddScoped<ICertificateRepository, CertificateRepository>();
 builder.Services.AddScoped<IDnsProviderRepository, DnsProviderRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+builder.Services.AddScoped<IDomainRepository, DomainRepository>();
+builder.Services.AddScoped<IOperationLogRepository, OperationLogRepository>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IAcmeService, AcmeService>();
 builder.Services.AddScoped<IAcmeAccountCache, AcmeAccountCache>();
-builder.Services.AddScoped<IAliyunDnsService, AliyunDnsService>();
+builder.Services.AddScoped<IDomainProviderClient, AliyunDomainProviderClient>();
+builder.Services.AddScoped<IOperationLogService, OperationLogService>();
+builder.Services.AddScoped<IDomainSyncService, DomainSyncService>();
 builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 
 builder.Services.Configure<AcmeSettings>(
@@ -85,6 +90,8 @@ builder.Services.Configure<ApiKeySettings>(
     builder.Configuration.GetSection(ApiKeySettings.SectionName));
 builder.Services.Configure<ForwardedHeadersSettings>(
     builder.Configuration.GetSection(ForwardedHeadersSettings.SectionName));
+builder.Services.Configure<ServiceRegistrySettings>(
+    builder.Configuration.GetSection(ServiceRegistrySettings.SectionName));
 
 builder.Services.AddQuartz(q =>
 {
@@ -144,6 +151,30 @@ if (messagingEnabled)
 }
 
 Log.Information("Messaging {Status}", messagingEnabled ? "enabled" : "disabled");
+
+// MinGo.ServiceRegistry 服务注册（通过 ServiceRegistry:Enabled 控制是否启用）
+var serviceRegistrySettings = builder.Configuration
+    .GetSection(ServiceRegistrySettings.SectionName)
+    .Get<ServiceRegistrySettings>() ?? new ServiceRegistrySettings();
+if (serviceRegistrySettings.Enabled)
+{
+    builder.Services.AddServiceRegistry(options =>
+    {
+        options.ServiceName = serviceRegistrySettings.ServiceName;
+        options.RegistryEndpoint = new Uri(serviceRegistrySettings.RegistryEndpoint);
+        options.LeaseTtlSeconds = serviceRegistrySettings.LeaseTtlSeconds;
+        options.InstanceId = serviceRegistrySettings.InstanceId;
+        options.Host = string.IsNullOrWhiteSpace(serviceRegistrySettings.Host) ? null : serviceRegistrySettings.Host;
+        options.Port = serviceRegistrySettings.Port > 0 ? serviceRegistrySettings.Port : null;
+        options.Scheme = string.IsNullOrWhiteSpace(serviceRegistrySettings.Scheme) ? null : serviceRegistrySettings.Scheme;
+
+        foreach (var (key, value) in serviceRegistrySettings.Metadata)
+        {
+            options.Metadata[key] = value;
+        }
+    });
+}
+Log.Information("ServiceRegistry {Status}", serviceRegistrySettings.Enabled ? "enabled" : "disabled");
 
 // OpenTelemetry: Logs / Metrics / Traces → OTLP Exporter
 builder.Services.AddOpenTelemetry(builder.Configuration);

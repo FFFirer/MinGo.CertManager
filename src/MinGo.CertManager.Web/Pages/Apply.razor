@@ -2,11 +2,14 @@
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using MinGo.CertManager.Core.Entities
+@using MinGo.CertManager.Core.Services
 @using Microsoft.AspNetCore.Components.Forms
 @using MinGo.CertManager.Infrastructure.Repositories
 @using MinGo.CertManager.Infrastructure.Jobs
 @using Quartz
 @inject ICertificateRepository CertificateRepository
+@inject IDomainRepository DomainRepository
+@inject IDomainProviderClient ProviderClient
 @inject global::Quartz.ISchedulerFactory SchedulerFactory
 @inject NavigationManager NavigationManager
 
@@ -35,19 +38,32 @@
                 <DataAnnotationsValidator />
                 <div class="space-y-6">
                     <div>
-                        <label class="label">域名</label>
-                        <InputText class="input" @bind-Value="applyModel.Domain" placeholder="example.com" />
+                        <label class="label">域名（从纳管 FQDN 选择）</label>
+                        <InputSelect class="select" @bind-Value="applyModel.Domain">
+                            <option value="">-- 选择已纳管域名 --</option>
+                            @foreach (var domain in managedDomains)
+                            {
+                                <option value="@domain.Fqdn">@domain.Fqdn（@domain.ZoneName）</option>
+                            }
+                        </InputSelect>
+                        @if (managedDomains.Count == 0)
+                        {
+                            <p class="text-sm text-muted-foreground mt-2">
+                                暂无纳管域名，请先到
+                                <a class="text-primary underline" href="domains">域名管理</a>
+                                同步或添加 FQDN
+                            </p>
+                        }
                         <div class="mt-2">
                             <InputCheckbox class="checkbox" @bind-Value="applyModel.IsWildcard" />
-                            <label class="ml-2 text-sm">申请泛域名证书 (*.example.com)</label>
+                            <label class="ml-2 text-sm">申请泛域名证书 (*.domain)</label>
                         </div>
                     </div>
 
                     <div>
-                        <label class="label">DNS提供商</label>
-                        <InputSelect class="select" @bind-Value="applyModel.DnsProvider">
-                            <option value="Aliyun">阿里云DNS</option>
-                        </InputSelect>
+                        <label class="label">DNS 提供商</label>
+                        <input class="input" value="@ProviderClient.ProviderType" disabled />
+                        <p class="text-sm text-muted-foreground mt-1">凭据使用现有 AliyunDns 配置，按提供商同步的域名资产进行 DNS-01 验证</p>
                     </div>
 
                     <div>
@@ -115,15 +131,20 @@
     {
         public string Domain { get; set; } = string.Empty;
         public bool IsWildcard { get; set; }
-        public string DnsProvider { get; set; } = "Aliyun";
         public string Email { get; set; } = string.Empty;
         public bool UseStaging { get; set; } = false;
     }
 
     private ApplyCertificateModel applyModel = new();
+    private List<Domain> managedDomains = new();
     private bool IsApplying { get; set; }
     private string? StatusMessage { get; set; }
     private bool IsSuccess { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        managedDomains = await DomainRepository.GetActiveDomainsAsync(ProviderClient.ProviderType);
+    }
 
     private void NavigateToCertificates()
     {
@@ -136,6 +157,13 @@
         {
             IsApplying = true;
             StatusMessage = null;
+
+            if (string.IsNullOrWhiteSpace(applyModel.Domain))
+            {
+                IsSuccess = false;
+                StatusMessage = "请选择已纳管域名";
+                return;
+            }
 
             // 检查同一域名是否已有证书正在申请中
             var hasPending = await CertificateRepository.HasPendingCertificateAsync(applyModel.Domain, applyModel.IsWildcard);

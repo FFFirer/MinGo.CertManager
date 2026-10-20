@@ -10,19 +10,24 @@ public interface IAcmeService
     /// </summary>
     /// <param name="domain">域名</param>
     /// <param name="isWildcard">是否通配符证书</param>
-    /// <param name="dnsService">DNS服务</param>
+    /// <param name="dnsService">DNS 提供商客户端</param>
     /// <param name="useStaging">是否使用测试环境</param>
-    /// <returns>证书结果</returns>
-    Task<CertificateResult> RequestCertificateAsync(string domain, bool isWildcard, IAliyunDnsService dnsService, bool useStaging = false);
-    
+    /// <param name="zoneName">已购域名（Zone）；提供时优先用于 DNS 记录定位</param>
+    Task<CertificateResult> RequestCertificateAsync(
+        string domain,
+        bool isWildcard,
+        IDomainProviderClient dnsService,
+        bool useStaging = false,
+        string? zoneName = null);
+
     /// <summary>
     /// 清理资源
     /// </summary>
-    /// <param name="domain">域名</param>
-    /// <param name="isWildcard">是否通配符证书</param>
-    /// <param name="dnsService">DNS服务</param>
-    /// <returns>任务</returns>
-    Task CleanupAsync(string domain, bool isWildcard, IAliyunDnsService dnsService);
+    Task CleanupAsync(
+        string domain,
+        bool isWildcard,
+        IDomainProviderClient dnsService,
+        string? zoneName = null);
 }
 
 /// <summary>
@@ -34,12 +39,12 @@ public class CertificateResult
     /// 证书PEM
     /// </summary>
     public string CertificatePem { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// 私钥PEM
     /// </summary>
     public string PrivateKeyPem { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// 证书链PEM
     /// </summary>
@@ -55,7 +60,7 @@ public enum AcmeEnvironment
     /// 生产环境
     /// </summary>
     Production,
-    
+
     /// <summary>
     /// 测试环境
     /// </summary>

@@ -33,7 +33,9 @@ public class CertificateService : ICertificateService
     private readonly ILogger<CertificateService> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly CertificateSettings _certificateSettings;
-    private readonly IAliyunDnsService _aliyunDnsService;
+    private readonly IDomainProviderClient _dnsProviderClient;
+    private readonly IOperationLogService _operationLogService;
+    private readonly IDomainRepository _domainRepository;
     private readonly IMessagePublisher? _messagePublisher;
 
     public CertificateService(
@@ -42,7 +44,9 @@ public class CertificateService : ICertificateService
         ILogger<CertificateService> logger,
         ILoggerFactory loggerFactory,
         IOptions<CertificateSettings> certificateSettings,
-        IAliyunDnsService aliyunDnsService,
+        IDomainProviderClient dnsProviderClient,
+        IOperationLogService operationLogService,
+        IDomainRepository domainRepository,
         IMessagePublisher? messagePublisher = null,
         IServiceProvider? serviceProvider = null)
     {
@@ -50,7 +54,9 @@ public class CertificateService : ICertificateService
         _acmeService = acmeService;
         _logger = logger;
         _loggerFactory = loggerFactory;
-        _aliyunDnsService = aliyunDnsService;
+        _dnsProviderClient = dnsProviderClient;
+        _operationLogService = operationLogService;
+        _domainRepository = domainRepository;
         _certificateSettings = certificateSettings.Value;
         _messagePublisher = messagePublisher;
     }
@@ -124,7 +130,22 @@ public class CertificateService : ICertificateService
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingOrder, "创建ACME订单");
 
-            var certificateResult = await _acmeService.RequestCertificateAsync(certificate.Domain, certificate.IsWildcard, _aliyunDnsService, certificate.UseStaging);
+            var zoneName = await ResolveZoneNameAsync(certificate.Domain);
+            var certificateResult = await _acmeService.RequestCertificateAsync(
+                certificate.Domain,
+                certificate.IsWildcard,
+                _dnsProviderClient,
+                certificate.UseStaging,
+                zoneName);
+
+            await _operationLogService.LogAsync(
+                OperationLogAction.CertRequested,
+                OperationLogResult.Success,
+                _dnsProviderClient.ProviderType,
+                "Certificate",
+                certificate.Id.ToString(),
+                certificate.Domain,
+                $"证书申请完成: {(certificate.IsWildcard ? "泛域名" : "单域名")}");
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.Completed, "证书申请完成");
 
@@ -158,6 +179,15 @@ public class CertificateService : ICertificateService
             certificate.Status = CertificateStatus.Failed;
             certificate.UpdatedAt = DateTime.UtcNow;
             await _certificateRepository.UpdateAsync(certificate);
+
+            await _operationLogService.LogAsync(
+                OperationLogAction.CertRequested,
+                OperationLogResult.Failed,
+                _dnsProviderClient.ProviderType,
+                "Certificate",
+                certificate.Id.ToString(),
+                certificate.Domain,
+                $"证书申请失败: {ex.Message}");
 
             // 发布证书申请失败事件
             if (_messagePublisher != null)
@@ -318,6 +348,22 @@ public class CertificateService : ICertificateService
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// 从纳管域名资产解析所属 Zone；未纳管时返回 null，由 ACME 启发式切分回退。
+    /// </summary>
+    private async Task<string?> ResolveZoneNameAsync(string fqdn)
+    {
+        var normalized = fqdn.Trim().TrimEnd('.').ToLowerInvariant();
+        var domain = await _domainRepository.GetByFqdnAsync(_dnsProviderClient.ProviderType, normalized);
+        if (!string.IsNullOrWhiteSpace(domain?.ZoneName))
+        {
+            return domain!.ZoneName;
+        }
+
+        var zoneNames = await _domainRepository.GetActiveZoneNamesAsync(_dnsProviderClient.ProviderType);
+        return DomainNameHelper.MatchZone(normalized, zoneNames);
     }
 
     private async Task<DnsProvider> GetDefaultDnsProvider()

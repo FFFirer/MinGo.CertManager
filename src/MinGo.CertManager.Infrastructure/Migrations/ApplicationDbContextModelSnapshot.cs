@@ -345,6 +345,217 @@ namespace MinGo.CertManager.Infrastructure.Migrations
                     b.ToTable("DnsProviders");
                 });
 
+            modelBuilder.Entity("MinGo.CertManager.Core.Entities.Domain", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Fqdn")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProviderType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ZoneName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("ZoneName");
+
+                    b.HasIndex("ProviderType", "Fqdn")
+                        .IsUnique();
+
+                    b.ToTable("Domains");
+                });
+
+            modelBuilder.Entity("MinGo.CertManager.Core.Entities.DomainRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Fqdn")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderRecordId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProviderType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Rr")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Ttl")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ZoneName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fqdn");
+
+                    b.HasIndex("ProviderType", "ZoneName", "ProviderRecordId")
+                        .IsUnique();
+
+                    b.ToTable("DomainRecords");
+                });
+
+            modelBuilder.Entity("MinGo.CertManager.Core.Entities.DomainZone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProviderType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProviderZoneId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ZoneName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderType", "ZoneName")
+                        .IsUnique();
+
+                    b.ToTable("DomainZones");
+                });
+
+            modelBuilder.Entity("MinGo.CertManager.Core.Entities.OperationLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Payload")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProviderType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Result")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TargetId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetName")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Action");
+
+                    b.HasIndex("At");
+
+                    b.HasIndex("TargetName");
+
+                    b.ToTable("OperationLogs");
+                });
+
             modelBuilder.Entity("MinGo.CertManager.Infrastructure.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")

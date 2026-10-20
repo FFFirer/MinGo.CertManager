@@ -24,6 +24,9 @@ public class AliyunDnsSettings
 
     public string AccessKeyId { get; set; } = string.Empty;
     public string AccessKeySecret { get; set; } = string.Empty;
+    public string RegionId { get; set; } = "cn-hangzhou";
+    public string ApiVersion { get; set; } = "2015-01-09";
+    public string Endpoint { get; set; } = "https://alidns.aliyuncs.com/";
 }
 
 public class QuartzSettings
@@ -71,4 +74,19 @@ public class ForwardedHeadersSettings
     public const string SectionName = "ForwardedHeaders";
 
     public bool Enabled { get; set; } = false;
+}
+
+public class ServiceRegistrySettings
+{
+    public const string SectionName = "ServiceRegistry";
+
+    public bool Enabled { get; set; } = false;
+    public string ServiceName { get; set; } = "MinGo.CertManager";
+    public string RegistryEndpoint { get; set; } = string.Empty;
+    public string? Host { get; set; }
+    public int? Port { get; set; }
+    public string? Scheme { get; set; }
+    public int LeaseTtlSeconds { get; set; } = 15;
+    public string? InstanceId { get; set; }
+    public Dictionary<string, string> Metadata { get; set; } = new();
 }
