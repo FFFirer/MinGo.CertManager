@@ -24,8 +24,48 @@ public class AliyunDomainProviderClient : IDomainProviderClient
         IOptions<AliyunDnsSettings> settings)
     {
         _logger = logger;
-        var config = settings.Value.Adapt<AlibabaCloud.OpenApiClient.Models.Config>();
+        var dnsSettings = settings.Value;
+        var config = dnsSettings.Adapt<AlibabaCloud.OpenApiClient.Models.Config>();
+        // SDK 会把 Protocol + "://" + Endpoint 拼成请求地址；Endpoint 必须是主机名。
+        // 兼容 "https://alidns.aliyuncs.com/" 这类带协议写法，避免主机名被解析成 "https"。
+        config.Endpoint = NormalizeEndpoint(dnsSettings.Endpoint);
+        if (string.IsNullOrWhiteSpace(config.Protocol))
+        {
+            config.Protocol = "https";
+        }
+
         _client = new Client(config);
+    }
+
+    /// <summary>
+    /// 将 Endpoint 归一化为主机名（去掉协议与路径）。
+    /// </summary>
+    public static string NormalizeEndpoint(string? endpoint)
+    {
+        const string defaultHost = "alidns.aliyuncs.com";
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return defaultHost;
+        }
+
+        var value = endpoint.Trim();
+        if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value["http://".Length..];
+        }
+        else if (value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value["https://".Length..];
+        }
+
+        // 去掉可能的 path / query，只保留 host[:port]
+        var slash = value.IndexOfAny(['/', '?', '#']);
+        if (slash >= 0)
+        {
+            value = value[..slash];
+        }
+
+        return string.IsNullOrWhiteSpace(value) ? defaultHost : value;
     }
 
     public DnsProviderType ProviderType => DnsProviderType.Aliyun;

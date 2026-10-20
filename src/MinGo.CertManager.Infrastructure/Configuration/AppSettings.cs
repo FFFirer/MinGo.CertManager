@@ -26,7 +26,8 @@ public class AliyunDnsSettings
     public string AccessKeySecret { get; set; } = string.Empty;
     public string RegionId { get; set; } = "cn-hangzhou";
     public string ApiVersion { get; set; } = "2015-01-09";
-    public string Endpoint { get; set; } = "https://alidns.aliyuncs.com/";
+    /// <summary>阿里云 DNS 服务地址。SDK 需要主机名（可带协议，客户端会归一化），勿只写协议。</summary>
+    public string Endpoint { get; set; } = "alidns.aliyuncs.com";
 }
 
 public class QuartzSettings
