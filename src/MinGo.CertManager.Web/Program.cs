@@ -124,6 +124,9 @@ builder.Services.AddQuartz(q =>
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
+// 证书申请/续期任务恢复：Quartz 内存存储重启即丢动态 Job，启动时捞回 Pending 并重新入队
+builder.Services.AddHostedService<CertificateWorkRecoveryService>();
+
 // MinGo.Quartz.Agent SDK（通过 QuartzAgent:Enabled 控制是否启用）
 // 启用后：
 //   - 自动挂载 L1 可观测监听器（OpenTelemetry span/metric，JobDataMap 敏感字段脱敏）

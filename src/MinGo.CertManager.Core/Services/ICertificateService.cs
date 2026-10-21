@@ -25,10 +25,10 @@ public interface ICertificateService
     Task<Certificate> ProcessCertificateAsync(Guid certificateId);
 
     /// <summary>
-    /// 续签证书
+    /// 续签证书：创建新记录承载续期，源证书状态与内容不被修改
     /// </summary>
-    /// <param name="certificateId">证书ID</param>
-    /// <returns>更新后的证书实体</returns>
+    /// <param name="certificateId">源证书ID（须为 Active）</param>
+    /// <returns>新建的续期证书实体</returns>
     Task<Certificate> RenewCertificateAsync(Guid certificateId);
     
     /// <summary>

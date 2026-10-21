@@ -37,27 +37,27 @@ public class CertificateRenewalJob : IJob
 
         try
         {
-            var certificates = await _certificateRepository.GetAllAsync();
-            var expiringCertificates = certificates
-                .Where(c => c.Status == CertificateStatus.Active)
-                .Where(c => c.ExpiresAt <= DateTime.UtcNow.AddDays(_certificateSettings.RenewalDaysBeforeExpiry))
-                .ToList();
+            var expiringBefore = DateTime.UtcNow.AddDays(_certificateSettings.RenewalDaysBeforeExpiry);
+            var expiringCertificates = await _certificateRepository.GetRenewalCandidatesAsync(expiringBefore);
 
-            _logger.LogInformation($"Found {expiringCertificates.Count} certificates to renew");
+            _logger.LogInformation("Found {Count} certificates to renew", expiringCertificates.Count);
 
             foreach (var certificate in expiringCertificates)
             {
                 try
                 {
-                    _logger.LogInformation($"Renewing certificate for domain: {certificate.Domain}");
+                    _logger.LogInformation("Renewing certificate for domain: {Domain} (source={SourceId})",
+                        certificate.Domain, certificate.Id);
 
+                    // 续期创建新记录，失败不影响源证书，下轮 Job 自然重试
                     var renewedCertificate = await _certificateService.RenewCertificateAsync(certificate.Id);
 
-                    _logger.LogInformation($"Successfully renewed certificate for domain: {renewedCertificate.Domain}");
+                    _logger.LogInformation("Successfully renewed certificate for domain: {Domain} (new={NewId})",
+                        renewedCertificate.Domain, renewedCertificate.Id);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Failed to renew certificate for domain: {certificate.Domain}");
+                    _logger.LogError(ex, "Failed to renew certificate for domain: {Domain}", certificate.Domain);
                 }
             }
 

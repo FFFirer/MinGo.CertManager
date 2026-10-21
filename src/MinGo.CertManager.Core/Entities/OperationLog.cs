@@ -14,7 +14,9 @@ public enum OperationLogAction
     DnsTxtDeleted = 6,
     CertRequested = 7,
     RecordCreated = 8,
-    RecordRemoved = 9
+    RecordRemoved = 9,
+    CertRenewed = 10,
+    CertRenewFailed = 11
 }
 
 /// <summary>

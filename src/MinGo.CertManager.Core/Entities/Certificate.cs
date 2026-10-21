@@ -16,6 +16,8 @@ public class Certificate
     public string CertificateContent { get; set; } = string.Empty;
     public string PrivateKey { get; set; } = string.Empty;
     public string CertificateChain { get; set; } = string.Empty;
+    /// <summary>续期来源证书 Id；非空表示本记录由续期创建</summary>
+    public Guid? RenewedFromId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

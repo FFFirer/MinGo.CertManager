@@ -294,6 +294,9 @@ namespace MinGo.CertManager.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("RenewedFromId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")

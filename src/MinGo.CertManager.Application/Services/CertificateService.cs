@@ -122,8 +122,13 @@ public class CertificateService : ICertificateService
         }
     }
 
-    private async Task ExecuteCertificateRequestAsync(Certificate certificate)
+    private async Task ExecuteCertificateRequestAsync(
+        Certificate certificate,
+        bool isRenewal = false,
+        Guid? sourceCertificateId = null)
     {
+        var logAction = isRenewal ? OperationLogAction.CertRenewed : OperationLogAction.CertRequested;
+        var failAction = isRenewal ? OperationLogAction.CertRenewFailed : OperationLogAction.CertRequested;
         try
         {
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.CreatingAccount, "创建ACME账户");
@@ -139,13 +144,15 @@ public class CertificateService : ICertificateService
                 zoneName);
 
             await _operationLogService.LogAsync(
-                OperationLogAction.CertRequested,
+                logAction,
                 OperationLogResult.Success,
                 _dnsProviderClient.ProviderType,
                 "Certificate",
                 certificate.Id.ToString(),
                 certificate.Domain,
-                $"证书申请完成: {(certificate.IsWildcard ? "泛域名" : "单域名")}");
+                isRenewal
+                    ? $"证书续期完成: 源证书={sourceCertificateId}, {(certificate.IsWildcard ? "泛域名" : "单域名")}"
+                    : $"证书申请完成: {(certificate.IsWildcard ? "泛域名" : "单域名")}");
 
             await UpdateAcmeStatusAsync(certificate.Id, AcmeProcessStatus.Completed, "证书申请完成");
 
@@ -160,7 +167,8 @@ public class CertificateService : ICertificateService
 
             await _certificateRepository.UpdateAsync(certificate);
 
-            _logger.LogInformation("证书申请成功: CertificateId={CertificateId}, ExpiresAt={ExpiresAt}", certificate.Id, certificate.ExpiresAt);
+            _logger.LogInformation("证书申请成功: CertificateId={CertificateId}, ExpiresAt={ExpiresAt}, IsRenewal={IsRenewal}",
+                certificate.Id, certificate.ExpiresAt, isRenewal);
 
             // 发布证书完成事件
             if (_messagePublisher != null)
@@ -181,13 +189,15 @@ public class CertificateService : ICertificateService
             await _certificateRepository.UpdateAsync(certificate);
 
             await _operationLogService.LogAsync(
-                OperationLogAction.CertRequested,
+                failAction,
                 OperationLogResult.Failed,
                 _dnsProviderClient.ProviderType,
                 "Certificate",
                 certificate.Id.ToString(),
                 certificate.Domain,
-                $"证书申请失败: {ex.Message}");
+                isRenewal
+                    ? $"证书续期失败: 源证书={sourceCertificateId}, {ex.Message}"
+                    : $"证书申请失败: {ex.Message}");
 
             // 发布证书申请失败事件
             if (_messagePublisher != null)
@@ -206,27 +216,60 @@ public class CertificateService : ICertificateService
 
     public async Task<Certificate> RenewCertificateAsync(Guid certificateId)
     {
-        _logger.LogInformation("开始续签证书: CertificateId={CertificateId}", certificateId);
+        _logger.LogInformation("开始续签证书(新建记录): CertificateId={CertificateId}", certificateId);
 
-        var existingCertificate = await _certificateRepository.GetByIdAsync(certificateId);
-        if (existingCertificate == null)
+        var source = await _certificateRepository.GetByIdAsync(certificateId);
+        if (source == null)
         {
             _logger.LogWarning("证书不存在: CertificateId={CertificateId}", certificateId);
             throw new ArgumentException("Certificate not found", nameof(certificateId));
         }
 
-        _logger.LogInformation("证书信息: Domain={Domain}, IsWildcard={IsWildcard}, Status={Status}",
-            existingCertificate.Domain, existingCertificate.IsWildcard, existingCertificate.Status);
+        if (source.Status != CertificateStatus.Active)
+        {
+            _logger.LogWarning("仅 Active 证书可续签: CertificateId={CertificateId}, Status={Status}",
+                certificateId, source.Status);
+            throw new InvalidOperationException($"Only Active certificates can be renewed. Current status: {source.Status}");
+        }
 
-        // 重置证书状态为初始化，准备重新申请
-        existingCertificate.Status = CertificateStatus.Pending;
-        existingCertificate.AcmeStatus = AcmeProcessStatus.Initializing;
-        existingCertificate.AcmeStatusMessage = "准备续签";
-        existingCertificate.UpdatedAt = DateTime.UtcNow;
-        await _certificateRepository.UpdateAsync(existingCertificate);
+        if (await _certificateRepository.HasPendingCertificateAsync(source.Domain, source.IsWildcard, source.UseStaging))
+        {
+            _logger.LogWarning("同标识已有在途申请/续期，跳过: Domain={Domain}, IsWildcard={IsWildcard}, UseStaging={UseStaging}",
+                source.Domain, source.IsWildcard, source.UseStaging);
+            throw new InvalidOperationException(
+                $"Certificate '{source.Domain}' already has an in-flight request/renewal");
+        }
 
-        // 处理已存在的证书申请（更新现有记录，不创建新记录）
-        return await ProcessCertificateAsync(certificateId);
+        _logger.LogInformation("源证书信息: Domain={Domain}, IsWildcard={IsWildcard}, ExpiresAt={ExpiresAt}",
+            source.Domain, source.IsWildcard, source.ExpiresAt);
+
+        // 新建记录承载续期，源证书状态与内容保持不变
+        var renewed = new Certificate
+        {
+            Id = Guid.NewGuid(),
+            Domain = source.Domain,
+            IsWildcard = source.IsWildcard,
+            UseStaging = source.UseStaging,
+            Status = CertificateStatus.Pending,
+            AcmeStatus = AcmeProcessStatus.Initializing,
+            AcmeStatusMessage = "续期中",
+            RenewedFromId = source.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        await _certificateRepository.AddAsync(renewed);
+
+        try
+        {
+            // 成功/失败流水由 ExecuteCertificateRequestAsync 按 isRenewal 写入
+            await ExecuteCertificateRequestAsync(renewed, isRenewal: true, sourceCertificateId: source.Id);
+            return renewed;
+        }
+        catch
+        {
+            // 新记录保留为 Failed；源证书状态不动，可继续导出与下轮重试
+            throw;
+        }
     }
 
     public async Task<byte[]> ExportCertificateAsync(Guid certificateId, CertificateFormat format, string? password = null)

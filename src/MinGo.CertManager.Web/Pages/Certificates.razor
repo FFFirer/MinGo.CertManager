@@ -72,6 +72,10 @@
                                     }
                                     <span
                                     class="badge @GetStatusBadgeClass((CertificateStatus)cert.Status)">@GetStatusText((CertificateStatus)cert.Status)</span>
+                                    @if (cert.RenewedFromId.HasValue)
+                                    {
+                                        <span class="badge badge-info">续期</span>
+                                    }
                                 </div>
                             </div>
                         </div>
