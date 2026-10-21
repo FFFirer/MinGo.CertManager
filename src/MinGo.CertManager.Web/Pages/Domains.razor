@@ -11,6 +11,8 @@
 @inject IOperationLogService OperationLogService
 @inject IDomainProviderClient ProviderClient
 @inject IDnsProviderConsoleService ProviderConsoleService
+@inject IDnsRecordAdminService RecordAdminService
+@inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageHeader Title="域名管理" Description="基于提供商同步的域名资产、解析记录与操作流水">
@@ -138,14 +140,58 @@
     else if (activeTab == "zones")
     {
         <div class="p-6 border-b border-border">
-            <label class="label">选择已购域名查看解析记录</label>
-            <select class="select w-full sm:w-96" value="@selectedZone" @onchange="OnZoneChange">
-                <option value="">-- 选择 Zone --</option>
-                @foreach (var zone in zones)
+            <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+                <div class="flex-1">
+                    <label class="label">选择已购域名查看解析记录</label>
+                    <select class="select w-full sm:w-96" value="@selectedZone" @onchange="OnZoneChange">
+                        <option value="">-- 选择 Zone --</option>
+                        @foreach (var zone in zones)
+                        {
+                            <option value="@zone.ZoneName">@zone.ZoneName (@GetAssetStatusText(zone.Status))</option>
+                        }
+                    </select>
+                </div>
+                <AuthorizeView Roles="Admin">
+                    <button class="btn btn-secondary" disabled="@string.IsNullOrEmpty(selectedZone)" @onclick="() => showAddRecordForm = !showAddRecordForm">
+                        添加解析记录
+                    </button>
+                </AuthorizeView>
+            </div>
+
+            <AuthorizeView Roles="Admin">
+                @if (showAddRecordForm && !string.IsNullOrEmpty(selectedZone))
                 {
-                    <option value="@zone.ZoneName">@zone.ZoneName (@GetAssetStatusText(zone.Status))</option>
+                    <div class="mt-4 p-4 border border-border rounded-md bg-accent/30">
+                        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                            <div>
+                                <label class="label">RR</label>
+                                <input class="input w-full" placeholder="www" @bind="newRecordRr" />
+                            </div>
+                            <div>
+                                <label class="label">类型</label>
+                                <select class="select w-full" @bind="newRecordType">
+                                    <option value="A">A</option>
+                                    <option value="AAAA">AAAA</option>
+                                    <option value="CNAME">CNAME</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="label">值</label>
+                                <input class="input w-full" placeholder="1.2.3.4" @bind="newRecordValue" />
+                            </div>
+                            <div>
+                                <label class="label">TTL</label>
+                                <input class="input w-full" type="number" min="600" max="86400" @bind="newRecordTtl" />
+                            </div>
+                        </div>
+                        <div class="mt-3 flex gap-2 justify-end">
+                            <button class="btn btn-secondary" @onclick="() => showAddRecordForm = false">取消</button>
+                            <button class="btn btn-primary" disabled="@isBusy" @onclick="CreateRecordAsync">创建</button>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-2">仅支持 A / AAAA / CNAME；TTL 默认 600。修改记录请删除后重建。</p>
+                    </div>
                 }
-            </select>
+            </AuthorizeView>
         </div>
 
         @if (string.IsNullOrEmpty(selectedZone))
@@ -172,6 +218,7 @@
                             <th class="px-4 py-3">TTL</th>
                             <th class="px-4 py-3">推导 FQDN</th>
                             <th class="px-4 py-3">状态</th>
+                            <th class="px-4 py-3">操作</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -185,6 +232,22 @@
                                 <td class="px-4 py-3">@record.Fqdn</td>
                                 <td class="px-4 py-3">
                                     <span class="badge @GetAssetBadgeClass(record.Status)">@GetAssetStatusText(record.Status)</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    @if (DnsRecordValidator.IsAcmeChallengeRr(record.Rr))
+                                    {
+                                        <span class="text-xs text-muted-foreground">证书验证占用</span>
+                                    }
+                                    else if (record.Status == DomainAssetStatus.Active)
+                                    {
+                                        <AuthorizeView Roles="Admin">
+                                            <button class="btn btn-destructive btn-sm"
+                                                    disabled="@isBusy"
+                                                    @onclick="() => DeleteRecordAsync(record)">
+                                                删除
+                                            </button>
+                                        </AuthorizeView>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -281,6 +344,12 @@
     private string newFqdn = string.Empty;
     private string? newRemark;
     private bool showAddForm;
+
+    private bool showAddRecordForm;
+    private string newRecordRr = string.Empty;
+    private string newRecordType = "A";
+    private string newRecordValue = string.Empty;
+    private int newRecordTtl = DnsRecordValidator.DefaultTtl;
     private bool isBusy;
     private string? busyKind;
     private string? statusMessage;
@@ -506,6 +575,92 @@
         }
     }
 
+    private async Task CreateRecordAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedZone))
+        {
+            isSuccess = false;
+            statusMessage = "请先选择已购域名（Zone）";
+            return;
+        }
+
+        isBusy = true;
+        busyKind = "record-create";
+        statusMessage = null;
+        try
+        {
+            var actor = await GetActorAsync();
+            var result = await RecordAdminService.CreateAsync(
+                selectedZone!, newRecordRr, newRecordType, newRecordValue, newRecordTtl, actor);
+            isSuccess = true;
+            statusMessage = result.Message;
+            showAddRecordForm = false;
+            newRecordRr = string.Empty;
+            newRecordValue = string.Empty;
+            newRecordTtl = DnsRecordValidator.DefaultTtl;
+            await LoadRecordsSafeAsync();
+        }
+        catch (Exception ex)
+        {
+            isSuccess = false;
+            statusMessage = $"创建失败：{ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            busyKind = null;
+        }
+    }
+
+    private async Task DeleteRecordAsync(DomainRecord record)
+    {
+        if (string.IsNullOrWhiteSpace(selectedZone))
+        {
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm", $"确认删除记录 {record.Rr}.{selectedZone}（{record.RecordType} {record.Value}）？此操作会写入 DNS 供应商。");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        isBusy = true;
+        busyKind = "record-delete";
+        statusMessage = null;
+        try
+        {
+            var actor = await GetActorAsync();
+            var result = await RecordAdminService.DeleteAsync(
+                selectedZone!, record.ProviderRecordId, actor);
+            isSuccess = true;
+            statusMessage = result.Message;
+            await LoadRecordsSafeAsync();
+        }
+        catch (Exception ex)
+        {
+            isSuccess = false;
+            statusMessage = $"删除失败：{ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            busyKind = null;
+        }
+    }
+
+    private async Task LoadRecordsSafeAsync()
+    {
+        if (string.IsNullOrEmpty(selectedZone))
+        {
+            records = new List<DomainRecord>();
+            return;
+        }
+
+        records = await DomainRepository.GetRecordsAsync(ProviderType, selectedZone!);
+    }
+
     private async Task<string> GetActorAsync()
     {
         var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -528,6 +683,8 @@
         OperationLogAction.DnsTxtCreated => "创建 TXT",
         OperationLogAction.DnsTxtDeleted => "删除 TXT",
         OperationLogAction.CertRequested => "证书申请",
+        OperationLogAction.RecordCreated => "创建解析",
+        OperationLogAction.RecordRemoved => "删除解析",
         _ => action.ToString()
     };
 }

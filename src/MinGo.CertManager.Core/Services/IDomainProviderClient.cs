@@ -49,4 +49,18 @@ public interface IDomainProviderClient
     /// 清理同名 TXT 残留记录（事前/事后清理）
     /// </summary>
     Task ClearTxtRecordsAsync(string zoneName, string rr, CancellationToken ct = default);
+
+    /// <summary>
+    /// 创建通用解析记录（A/AAAA/CNAME 等，类型由调用方约束）。
+    /// 供域名解析管理直通写使用；不做 Update 契约。
+    /// </summary>
+    /// <returns>提供商记录标识</returns>
+    Task<string> CreateRecordAsync(
+        string zoneName, string rr, string recordType, string value, int ttl,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// 按提供商记录标识删除解析记录。
+    /// </summary>
+    Task DeleteRecordAsync(string providerRecordId, string zoneName, CancellationToken ct = default);
 }

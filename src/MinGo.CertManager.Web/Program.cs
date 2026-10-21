@@ -77,6 +77,7 @@ builder.Services.AddScoped<IDomainSyncService, DomainSyncService>();
 builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 builder.Services.AddSingleton<IDnsProviderCatalog, DnsProviderCatalog>();
 builder.Services.AddScoped<IDnsProviderConsoleService, DnsProviderConsoleService>();
+builder.Services.AddScoped<IDnsRecordAdminService, DnsRecordAdminService>();
 
 builder.Services.Configure<AcmeSettings>(
     builder.Configuration.GetSection(AcmeSettings.SectionName));
