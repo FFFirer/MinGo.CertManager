@@ -100,3 +100,7 @@ node_modules/
 .opencode/worktree-session-state.json
 .omo/
 /.opencode/
+
+# Vite/Tailwind build outputs (pnpm build / watch:css)
+src/MinGo.CertManager.Web/wwwroot/.vite/
+src/MinGo.CertManager.Web/wwwroot/index*.css
