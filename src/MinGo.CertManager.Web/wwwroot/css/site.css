@@ -372,3 +372,100 @@ body {
 .validation-message {
   color: var(--destructive);
 }
+
+/* ===== DataTable 组件样式 ===== */
+
+/* 桌面端数据表格 */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgb(229, 229, 229);
+}
+
+.data-table th {
+  font-weight: 600;
+  color: rgb(115, 115, 115);
+  white-space: nowrap;
+}
+
+.data-table tbody tr:hover {
+  background-color: rgb(249, 250, 251);
+}
+
+.dark .data-table th,
+.dark .data-table td {
+  border-bottom-color: rgb(60, 60, 60);
+}
+
+.dark .data-table tbody tr:hover {
+  background-color: rgb(32, 32, 32);
+}
+
+/* 移动端卡片行 */
+.data-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgb(229, 229, 229);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.data-card:hover {
+  background-color: rgb(249, 250, 251);
+}
+
+.data-card:active {
+  background-color: rgb(243, 244, 246);
+}
+
+.data-card-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.data-card-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.data-card-label {
+  font-size: 0.7rem;
+  color: rgb(163, 163, 163);
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.data-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dark .data-card {
+  border-bottom-color: rgb(60, 60, 60);
+}
+
+.dark .data-card:hover {
+  background-color: rgb(32, 32, 32);
+}
+
+.dark .data-card:active {
+  background-color: rgb(40, 40, 40);
+}
+
+.dark .data-card-label {
+  color: rgb(115, 115, 115);
+}

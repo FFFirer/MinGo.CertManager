@@ -5,6 +5,7 @@
 @using MinGo.CertManager.Core.Services
 @using MinGo.CertManager.Application.Services
 @using MinGo.CertManager.Infrastructure.Repositories
+@using MinGo.CertManager.Web.Components
 
 @inject IDomainRepository DomainRepository
 @inject IDomainSyncService DomainSyncService
@@ -208,52 +209,32 @@
         }
         else
         {
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-accent/40 text-left">
-                        <tr>
-                            <th class="px-4 py-3">RR</th>
-                            <th class="px-4 py-3">类型</th>
-                            <th class="px-4 py-3">值</th>
-                            <th class="px-4 py-3">TTL</th>
-                            <th class="px-4 py-3">推导 FQDN</th>
-                            <th class="px-4 py-3">状态</th>
-                            <th class="px-4 py-3">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        @foreach (var record in records)
-                        {
-                            <tr>
-                                <td class="px-4 py-3 font-mono">@record.Rr</td>
-                                <td class="px-4 py-3">@record.RecordType</td>
-                                <td class="px-4 py-3 font-mono break-all">@record.Value</td>
-                                <td class="px-4 py-3">@record.Ttl</td>
-                                <td class="px-4 py-3">@record.Fqdn</td>
-                                <td class="px-4 py-3">
-                                    <span class="badge @GetAssetBadgeClass(record.Status)">@GetAssetStatusText(record.Status)</span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    @if (DnsRecordValidator.IsAcmeChallengeRr(record.Rr))
-                                    {
-                                        <span class="text-xs text-muted-foreground">证书验证占用</span>
-                                    }
-                                    else if (record.Status == DomainAssetStatus.Active)
-                                    {
-                                        <AuthorizeView Roles="Admin">
-                                            <button class="btn btn-destructive btn-sm"
-                                                    disabled="@isBusy"
-                                                    @onclick="() => DeleteRecordAsync(record)">
-                                                删除
-                                            </button>
-                                        </AuthorizeView>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <DataTable TItem="DomainRecord"
+                       Items="@records"
+                       RowActions="@RecordRowActions"
+                       EmptyText="该 Zone 暂无解析记录"
+                       DetailTitle="解析记录详情">
+                <DataTableColumn TItem="DomainRecord" Header="RR" IsIdentifying="true">
+                    <CellTemplate><span class="font-mono">@context.Rr</span></CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="DomainRecord" Header="类型">
+                    <CellTemplate>@context.RecordType</CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="DomainRecord" Header="值" VisibleOnMobile="false">
+                    <CellTemplate><span class="font-mono">@context.Value</span></CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="DomainRecord" Header="TTL" VisibleOnMobile="false">
+                    <CellTemplate>@context.Ttl</CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="DomainRecord" Header="推导 FQDN" VisibleOnMobile="false">
+                    <CellTemplate>@context.Fqdn</CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="DomainRecord" Header="状态">
+                    <CellTemplate>
+                        <span class="badge @GetAssetBadgeClass(context.Status)">@GetAssetStatusText(context.Status)</span>
+                    </CellTemplate>
+                </DataTableColumn>
+            </DataTable>
         }
     }
     else
@@ -285,40 +266,38 @@
         }
         else
         {
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-accent/40 text-left">
-                        <tr>
-                            <th class="px-4 py-3">时间 (UTC)</th>
-                            <th class="px-4 py-3">操作者</th>
-                            <th class="px-4 py-3">动作</th>
-                            <th class="px-4 py-3">目标</th>
-                            <th class="px-4 py-3">结果</th>
-                            <th class="px-4 py-3">摘要</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        @foreach (var log in logs)
-                        {
-                            <tr>
-                                <td class="px-4 py-3 whitespace-nowrap">@log.At.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                <td class="px-4 py-3">@log.Actor</td>
-                                <td class="px-4 py-3">@GetActionText(log.Action)</td>
-                                <td class="px-4 py-3">
-                                    <div>@log.TargetType</div>
-                                    <div class="text-muted-foreground text-xs">@log.TargetName</div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="badge @(log.Result == OperationLogResult.Success ? "badge-info" : "badge-destructive")">
-                                        @(log.Result == OperationLogResult.Success ? "成功" : "失败")
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-xs text-muted-foreground max-w-md break-all">@log.Message</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <DataTable TItem="OperationLog"
+                       Items="@logs"
+                       EmptyText="暂无操作记录"
+                       DetailTitle="操作记录详情">
+                <DataTableColumn TItem="OperationLog" Header="时间 (UTC)" VisibleOnMobile="false">
+                    <CellTemplate>@context.At.ToString("yyyy-MM-dd HH:mm:ss")</CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="OperationLog" Header="操作者" VisibleOnMobile="false">
+                    <CellTemplate>@context.Actor</CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="OperationLog" Header="动作" IsIdentifying="true">
+                    <CellTemplate>@GetActionText(context.Action)</CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="OperationLog" Header="目标" VisibleOnMobile="false">
+                    <CellTemplate>
+                        <div>@context.TargetType</div>
+                        <div class="text-muted-foreground text-xs">@context.TargetName</div>
+                    </CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="OperationLog" Header="结果">
+                    <CellTemplate>
+                        <span class="badge @(context.Result == OperationLogResult.Success ? "badge-info" : "badge-destructive")">
+                            @(context.Result == OperationLogResult.Success ? "成功" : "失败")
+                        </span>
+                    </CellTemplate>
+                </DataTableColumn>
+                <DataTableColumn TItem="OperationLog" Header="摘要" VisibleOnMobile="false">
+                    <CellTemplate>
+                        <span class="text-xs text-muted-foreground">@context.Message</span>
+                    </CellTemplate>
+                </DataTableColumn>
+            </DataTable>
 
             <div class="p-4 flex items-center justify-between text-sm text-muted-foreground">
                 <span>共 @logTotal 条，第 @(logSkip / LogPageSize + 1) 页</span>
@@ -332,6 +311,26 @@
 </div>
 
 @code {
+    private RenderFragment<DomainRecord> RecordRowActions => record => builder =>
+    {
+        if (DnsRecordValidator.IsAcmeChallengeRr(record.Rr))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "text-xs text-muted-foreground");
+            builder.AddContent(2, "证书验证占用");
+            builder.CloseElement();
+        }
+        else if (record.Status == DomainAssetStatus.Active)
+        {
+            builder.OpenElement(0, "button");
+            builder.AddAttribute(1, "class", "btn btn-destructive btn-sm");
+            builder.AddAttribute(2, "disabled", isBusy);
+            builder.AddAttribute(3, "onclick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs>(this, () => DeleteRecordAsync(record)));
+            builder.AddContent(4, "删除");
+            builder.CloseElement();
+        }
+    };
+
     private const int LogPageSize = 20;
 
     private string activeTab = "domains";

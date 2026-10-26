@@ -1,0 +1,69 @@
+@typeparam TItem
+@implements IDisposable
+
+@code {
+    [CascadingParameter]
+    private DataTable<TItem>? ParentTable { get; set; }
+
+    /// <summary>表头文字</summary>
+    [Parameter, EditorRequired]
+    public string Header { get; set; } = string.Empty;
+
+    /// <summary>单元格内容模板</summary>
+    [Parameter, EditorRequired]
+    public RenderFragment<TItem>? CellTemplate { get; set; }
+
+    /// <summary>移动端是否可见（默认 true）</summary>
+    [Parameter]
+    public bool VisibleOnMobile { get; set; } = true;
+
+    /// <summary>是否为主标识列（移动端始终显示，排在最前）</summary>
+    [Parameter]
+    public bool IsIdentifying { get; set; }
+
+    /// <summary>额外 CSS 类</summary>
+    [Parameter]
+    public string? CssClass { get; set; }
+
+    /// <summary>列宽提示（如 "min-w-[120px]"）</summary>
+    [Parameter]
+    public string? Width { get; set; }
+
+    private DataTableColumnDef<TItem>? _def;
+
+    protected override void OnInitialized()
+    {
+        _def = new DataTableColumnDef<TItem>
+        {
+            Header = Header,
+            CellTemplate = CellTemplate ?? (_ => builder => { }),
+            VisibleOnMobile = VisibleOnMobile,
+            IsIdentifying = IsIdentifying,
+            CssClass = CssClass,
+            Width = Width
+        };
+
+        ParentTable?.RegisterColumn(_def);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_def is not null)
+        {
+            _def.Header = Header;
+            _def.CellTemplate = CellTemplate ?? (_ => builder => { });
+            _def.VisibleOnMobile = VisibleOnMobile;
+            _def.IsIdentifying = IsIdentifying;
+            _def.CssClass = CssClass;
+            _def.Width = Width;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_def is not null)
+        {
+            ParentTable?.UnregisterColumn(_def);
+        }
+    }
+}

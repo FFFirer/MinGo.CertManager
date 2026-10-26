@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Identity
 @using MinGo.CertManager.Core.Entities
 @using MinGo.CertManager.Infrastructure.Data
+@using MinGo.CertManager.Web.Components
 @using System.Linq
 
 <PageHeader
@@ -20,53 +21,47 @@
 </PageHeader>
 
 <div class="card">
-    <div class="overflow-x-auto">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>用户名</th>
-                    <th>角色</th>
-                    <th class="whitespace-nowrap min-w-[120px]">外部身份</th>
-                    <th>创建时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var user in users)
-                {
-                    <tr>
-                        <td class="font-medium">@user.UserName</td>
-                        <td><span class="badge badge-info">@GetRoleText(user)</span></td>
-                        <td>
-                            @{
-                                var logins = GetUserLogins(user.Id);
-                            }
-                            @if (logins.Count > 0)
-                            {
-                                <div class="flex flex-wrap gap-1">
-                                    @foreach (var login in logins)
-                                    {
-                                        <span class="badge @GetBadgeClass(login.LoginProvider)">@login.ProviderDisplayName</span>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <span class="text-muted-foreground">—</span>
-                            }
-                        </td>
-                        <td>@user.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
-                        <td>
-                            @if (user.UserName != "admin")
-                            {
-                                <button class="btn btn-secondary" @onclick="@(() => DeleteUser(user.Id))">删除</button>
-                            }
-                        </td>
-                    </tr>
+    <DataTable TItem="ApplicationUser"
+               Items="@users"
+               RowActions="@UserRowActions"
+               EmptyText="暂无用户"
+               DetailTitle="用户详情">
+        <DataTableColumn TItem="ApplicationUser" Header="用户名" IsIdentifying="true">
+            <CellTemplate>
+                <span class="font-medium">@context.UserName</span>
+            </CellTemplate>
+        </DataTableColumn>
+        <DataTableColumn TItem="ApplicationUser" Header="角色">
+            <CellTemplate>
+                <span class="badge badge-info">@GetRoleText(context)</span>
+            </CellTemplate>
+        </DataTableColumn>
+        <DataTableColumn TItem="ApplicationUser" Header="外部身份" VisibleOnMobile="false" Width="min-w-[120px]">
+            <CellTemplate>
+                @{
+                    var logins = GetUserLogins(context.Id);
                 }
-            </tbody>
-        </table>
-    </div>
+                @if (logins.Count > 0)
+                {
+                    <div class="flex flex-wrap gap-1">
+                        @foreach (var login in logins)
+                        {
+                            <span class="badge @GetBadgeClass(login.LoginProvider)">@login.ProviderDisplayName</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <span class="text-muted-foreground">—</span>
+                }
+            </CellTemplate>
+        </DataTableColumn>
+        <DataTableColumn TItem="ApplicationUser" Header="创建时间" VisibleOnMobile="false">
+            <CellTemplate>
+                @context.CreatedAt.ToString("yyyy-MM-dd HH:mm")
+            </CellTemplate>
+        </DataTableColumn>
+    </DataTable>
 </div>
 
 <AddUserModal IsVisible="@showAddUserModal" OnClose="HideAddUserDialog" OnAdd="HandleAddUser" />
@@ -82,6 +77,18 @@
     private Dictionary<string, string> userRoles = new();
     private Dictionary<string, List<UserLoginInfo>> userLogins = new();
     private bool showAddUserModal = false;
+
+    private RenderFragment<ApplicationUser> UserRowActions => user => builder =>
+    {
+        if (user.UserName != "admin")
+        {
+            builder.OpenElement(0, "button");
+            builder.AddAttribute(1, "class", "btn btn-secondary");
+            builder.AddAttribute(2, "onclick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs>(this, () => DeleteUser(user.Id)));
+            builder.AddContent(3, "删除");
+            builder.CloseElement();
+        }
+    };
 
     protected override async Task OnInitializedAsync()
     {

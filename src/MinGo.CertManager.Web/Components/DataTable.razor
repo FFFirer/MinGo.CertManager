@@ -1,0 +1,176 @@
+@typeparam TItem
+
+<CascadingValue Value="this" IsFixed="true">
+    @ChildContent
+</CascadingValue>
+
+@* ===== 桌面端表格（md 及以上可见） ===== *@
+<div class="overflow-x-auto hidden md:block">
+    <table class="data-table">
+        <thead>
+            <tr>
+                @foreach (var col in OrderedColumns)
+                {
+                    <th class="@col.CssClass @col.Width">@col.Header</th>
+                }
+                @if (RowActions is not null)
+                {
+                    <th class="text-right">操作</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Items.Any())
+            {
+                <tr>
+                    <td colspan="@(OrderedColumns.Count + (RowActions is not null ? 1 : 0))" class="text-center py-12 text-muted-foreground">
+                        @EmptyText
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Items)
+                {
+                    <tr>
+                        @foreach (var col in OrderedColumns)
+                        {
+                            <td class="whitespace-nowrap @col.CssClass">
+                                @col.CellTemplate(item)
+                            </td>
+                        }
+                        @if (RowActions is not null)
+                        {
+                            <td class="whitespace-nowrap text-right">
+                                @RowActions(item)
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@* ===== 移动端卡片列表（md 以下可见） ===== *@
+<div class="md:hidden">
+    @if (!Items.Any())
+    {
+        <div class="text-center py-12 text-muted-foreground">
+            <p>@EmptyText</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var item in Items)
+        {
+            <div class="data-card" @onclick="() => ShowDetail(item)">
+                <div class="data-card-row">
+                    @foreach (var col in MobileColumns)
+                    {
+                        <div class="data-card-cell">
+                            <div class="data-card-label">@col.Header</div>
+                            <div class="whitespace-nowrap">
+                                @col.CellTemplate(item)
+                            </div>
+                        </div>
+                    }
+                </div>
+                @if (RowActions is not null)
+                {
+                    <div class="data-card-actions" @onclick:stopPropagation>
+                        @RowActions(item)
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@* ===== 移动端详情弹窗 ===== *@
+@if (detailItem is not null)
+{
+    <Modal IsVisible="true" Title="@DetailTitle" OnClose="HideDetail" OnOverlayClick="HideDetail">
+        <div class="space-y-3">
+            @foreach (var col in OrderedColumns)
+            {
+                <div class="flex justify-between gap-4 py-2 border-b border-border last:border-0">
+                    <span class="text-sm text-muted-foreground shrink-0">@col.Header</span>
+                    <span class="text-sm text-right break-all">
+                        @col.CellTemplate(detailItem)
+                    </span>
+                </div>
+            }
+        </div>
+        @if (RowActions is not null)
+        {
+            <div class="mt-4 pt-4 border-t border-border flex justify-end gap-2">
+                @RowActions(detailItem)
+            </div>
+        }
+    </Modal>
+}
+
+@code {
+    /// <summary>数据源</summary>
+    [Parameter, EditorRequired]
+    public IEnumerable<TItem> Items { get; set; } = Enumerable.Empty<TItem>();
+
+    /// <summary>列定义子组件（DataTableColumn）</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>操作列模板</summary>
+    [Parameter]
+    public RenderFragment<TItem>? RowActions { get; set; }
+
+    /// <summary>空数据提示文字</summary>
+    [Parameter]
+    public string EmptyText { get; set; } = "暂无数据";
+
+    /// <summary>详情弹窗标题</summary>
+    [Parameter]
+    public string DetailTitle { get; set; } = "详情";
+
+    // 内部状态
+    internal List<DataTableColumnDef<TItem>> ColumnDefs { get; set; } = new();
+    private TItem? detailItem;
+
+    internal void RegisterColumn(DataTableColumnDef<TItem> column)
+    {
+        if (!ColumnDefs.Contains(column))
+        {
+            ColumnDefs.Add(column);
+            StateHasChanged();
+        }
+    }
+
+    internal void UnregisterColumn(DataTableColumnDef<TItem> column)
+    {
+        if (ColumnDefs.Remove(column))
+        {
+            StateHasChanged();
+        }
+    }
+
+    private List<DataTableColumnDef<TItem>> OrderedColumns =>
+        ColumnDefs
+            .Select((col, idx) => (col, idx))
+            .OrderByDescending(x => x.col.IsIdentifying)
+            .ThenBy(x => x.idx)
+            .Select(x => x.col)
+            .ToList();
+
+    private List<DataTableColumnDef<TItem>> MobileColumns =>
+        OrderedColumns.Where(c => c.VisibleOnMobile).ToList();
+
+    private void ShowDetail(TItem item)
+    {
+        detailItem = item;
+    }
+
+    private void HideDetail()
+    {
+        detailItem = default;
+    }
+}
