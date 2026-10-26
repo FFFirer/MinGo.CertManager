@@ -127,9 +127,14 @@ body {
   transition: all 0.2s;
 }
 
-.card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
+/* 注意：.card 内可能渲染 fixed 定位的模态框（DataTable 移动端详情）。
+   transform/filter 等属性会使 .card 成为 fixed 后代的包含块与堆叠上下文，
+   且触屏设备 :hover 会粘滞，导致模态框位置漂移、被导航遮挡。
+   因此这里不使用 transform，并将 hover 效果限制在真正支持悬停的设备上。 */
+@media (hover: hover) {
+  .card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  }
 }
 
 .badge {
