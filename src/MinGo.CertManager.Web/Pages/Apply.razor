@@ -3,13 +3,18 @@
 @using Microsoft.AspNetCore.Authorization
 @using MinGo.CertManager.Core.Entities
 @using MinGo.CertManager.Core.Services
+@using MinGo.CertManager.Infrastructure.Configuration
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Options
 @using MinGo.CertManager.Infrastructure.Repositories
 @using MinGo.CertManager.Infrastructure.Jobs
 @using Quartz
 @inject ICertificateRepository CertificateRepository
 @inject IDomainRepository DomainRepository
 @inject IDomainProviderClient ProviderClient
+@inject IAcmeAccountCache AccountCache
+@inject IDnsProviderConsoleService ProviderConsole
+@inject IOptions<AcmeSettings> AcmeSettingsOptions
 @inject global::Quartz.ISchedulerFactory SchedulerFactory
 @inject NavigationManager NavigationManager
 
@@ -37,16 +42,17 @@
             <EditForm Model="@applyModel" OnValidSubmit="HandleApply">
                 <DataAnnotationsValidator />
                 <div class="space-y-6">
+                    @* 域名选择 *@
                     <div>
                         <label class="label">域名（从纳管 FQDN 选择）</label>
-                        <InputSelect class="select" @bind-Value="applyModel.Domain">
+                        <InputSelect class="select" @bind-Value="applyModel.Domain" disabled="@(!IsProviderConfigured)">
                             <option value="">-- 选择已纳管域名 --</option>
                             @foreach (var domain in managedDomains)
                             {
                                 <option value="@domain.Fqdn">@domain.Fqdn（@domain.ZoneName）</option>
                             }
                         </InputSelect>
-                        @if (managedDomains.Count == 0)
+                        @if (managedDomains.Count == 0 && IsProviderConfigured)
                         {
                             <p class="text-sm text-muted-foreground mt-2">
                                 暂无纳管域名，请先到
@@ -54,29 +60,118 @@
                                 同步或添加 FQDN
                             </p>
                         }
+                        @if (!IsProviderConfigured)
+                        {
+                            <p class="text-sm text-amber-600 mt-2">
+                                DNS 供应商凭据未配置，无法加载域名列表。请先到
+                                <a class="underline" href="dns-providers">DNS 供应商</a>
+                                完成配置。
+                            </p>
+                        }
+                        @if (managedDomains.Count > 0)
+                        {
+                            <p class="text-xs text-muted-foreground mt-1">共 @managedDomains.Count 个纳管域名</p>
+                        }
                         <div class="mt-2">
-                            <InputCheckbox class="checkbox" @bind-Value="applyModel.IsWildcard" />
+                            <InputCheckbox class="checkbox" @bind-Value="applyModel.IsWildcard" disabled="@(!IsProviderConfigured)" />
                             <label class="ml-2 text-sm">申请泛域名证书 (*.domain)</label>
                         </div>
                     </div>
 
+                    @* DNS 供应商（动态展示） *@
                     <div>
                         <label class="label">DNS 提供商</label>
                         <div class="input flex items-center justify-between gap-2">
-                            <span>阿里云 DNS · 凭据由配置提供</span>
+                            <div class="flex items-center gap-2">
+                                <span>@ProviderDisplayName</span>
+                                @if (providerConfig != null)
+                                {
+                                    <span class="text-xs px-2 py-0.5 rounded @(providerConfig.State == ProviderConfigState.Configured ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")">
+                                        @(providerConfig.State == ProviderConfigState.Configured ? "已配置" : "未配置")
+                                    </span>
+                                    @if (providerConfig.State == ProviderConfigState.Configured && !string.IsNullOrEmpty(providerConfig.MaskedAccessKeyId))
+                                    {
+                                        <span class="text-xs text-muted-foreground">AK: @providerConfig.MaskedAccessKeyId</span>
+                                    }
+                                }
+                            </div>
                             <a class="text-primary underline whitespace-nowrap" href="dns-providers">前往 DNS 供应商</a>
                         </div>
+                        @if (providerHealth != null)
+                        {
+                            <div class="flex items-center gap-2 mt-1">
+                                @switch (providerHealth.Status)
+                                {
+                                    case ProviderHealthStatus.Success:
+                                        <span class="text-xs text-green-600">@providerHealth.Message</span>
+                                        break;
+                                    case ProviderHealthStatus.AuthFailed:
+                                        <span class="text-xs text-red-600">@providerHealth.Message</span>
+                                        break;
+                                    case ProviderHealthStatus.ConnectionFailed:
+                                        <span class="text-xs text-red-600">@providerHealth.Message</span>
+                                        break;
+                                    case ProviderHealthStatus.NotConfigured:
+                                        <span class="text-xs text-amber-600">@providerHealth.Message</span>
+                                        break;
+                                    default:
+                                        <span class="text-xs text-muted-foreground">@providerHealth.Message</span>
+                                        break;
+                                }
+                            </div>
+                        }
                         <p class="text-sm text-muted-foreground mt-1">按提供商同步的域名资产进行 DNS-01 验证；凭据来自部署配置，不在界面修改</p>
                     </div>
 
+                    @* ACME 账户（混合选择器） *@
                     <div>
-                        <label class="label">邮箱地址（用于ACME账户）</label>
-                        <InputText class="input" @bind-Value="applyModel.Email" placeholder="your-email@example.com" type="email" />
+                        <label class="label">ACME 账户 <span class="text-red-500">*</span></label>
+                        <p class="text-xs text-muted-foreground mb-2">邮箱作为账户标识，用于 ACME 协议注册与联系</p>
+
+                        <InputSelect class="select" @bind-Value="selectedAccountId" @onchange="OnAccountSelected">
+                            <option value="">-- 选择已有账户 --</option>
+                            @if (productionAccounts.Any())
+                            {
+                                <option value="" disabled>── 生产环境 ──</option>
+                                @foreach (var acct in productionAccounts)
+                                {
+                                    <option value="@acct.Id">@GetAccountEmail(acct)（上次使用 @acct.LastUsedAt.ToString("yyyy-MM-dd")）</option>
+                                }
+                            }
+                            @if (stagingAccounts.Any())
+                            {
+                                <option value="" disabled>── 测试环境 ──</option>
+                                @foreach (var acct in stagingAccounts)
+                                {
+                                    <option value="@acct.Id">@GetAccountEmail(acct)（上次使用 @acct.LastUsedAt.ToString("yyyy-MM-dd")）</option>
+                                }
+                            }
+                            <option value="" disabled>────────────────</option>
+                            <option value="__new__">＋ 新建账户...</option>
+                        </InputSelect>
+
+                        @if (isNewAccountMode)
+                        {
+                            <div class="mt-3">
+                                <InputText class="input" @bind-Value="newAccountEmail" placeholder="your-email@example.com" type="email" />
+                                <p class="text-xs text-muted-foreground mt-1">新邮箱将在申请时自动注册为 ACME 账户</p>
+                                @if (!string.IsNullOrEmpty(newAccountEmailError))
+                                {
+                                    <p class="text-xs text-red-600 mt-1">@newAccountEmailError</p>
+                                }
+                            </div>
+                        }
+
+                        @if (string.IsNullOrEmpty(selectedAccountId) && !isNewAccountMode && !string.IsNullOrEmpty(configDefaultEmail))
+                        {
+                            <p class="text-xs text-muted-foreground mt-2">未选择账户时将使用配置默认值：<span class="font-mono">@configDefaultEmail</span></p>
+                        }
                     </div>
 
+                    @* ACME 环境 *@
                     <div>
                         <label class="label">ACME环境</label>
-                        <InputSelect class="select" @bind-Value="applyModel.UseStaging">
+                        <InputSelect class="select" @bind-Value="applyModel.UseStaging" @onchange="OnEnvironmentChanged">
                             <option value="false">生产环境（Let's Encrypt）</option>
                             <option value="true">测试环境（Let's Encrypt Staging）</option>
                         </InputSelect>
@@ -134,7 +229,6 @@
     {
         public string Domain { get; set; } = string.Empty;
         public bool IsWildcard { get; set; }
-        public string Email { get; set; } = string.Empty;
         public bool UseStaging { get; set; } = false;
     }
 
@@ -144,14 +238,148 @@
     private string? StatusMessage { get; set; }
     private bool IsSuccess { get; set; }
 
+    // DNS 供应商动态数据
+    private ProviderConfigView? providerConfig;
+    private ProviderHealthResult? providerHealth;
+    private string ProviderDisplayName => providerConfig != null
+        ? GetProviderDisplayName(ProviderClient.ProviderType)
+        : "未知供应商";
+    private bool IsProviderConfigured => providerConfig?.State == ProviderConfigState.Configured;
+
+    // ACME 账户选择器状态
+    private List<AcmeAccount> allAccounts = new();
+    private string? selectedAccountId;
+    private string newAccountEmail = "";
+    private bool isNewAccountMode;
+    private string? newAccountEmailError;
+    private string configDefaultEmail = "";
+
+    private IEnumerable<AcmeAccount> productionAccounts =>
+        allAccounts.Where(a => !a.IsStaging).OrderByDescending(a => a.LastUsedAt);
+
+    private IEnumerable<AcmeAccount> stagingAccounts =>
+        allAccounts.Where(a => a.IsStaging).OrderByDescending(a => a.LastUsedAt);
+
     protected override async Task OnInitializedAsync()
     {
+        // 加载域名列表
         managedDomains = await DomainRepository.GetActiveDomainsAsync(ProviderClient.ProviderType);
+
+        // 加载供应商配置态与健康状态
+        try
+        {
+            providerConfig = ProviderConsole.GetConfigView(ProviderClient.ProviderType);
+            providerHealth = await ProviderConsole.TestConnectionAsync(ProviderClient.ProviderType);
+        }
+        catch
+        {
+            // 供应商查询失败不阻塞页面
+        }
+
+        // 加载已有 ACME 账户
+        allAccounts = (await AccountCache.GetAllAccountsAsync()).ToList();
+
+        // 读取配置默认邮箱
+        configDefaultEmail = AcmeSettingsOptions.Value.AccountEmail;
     }
 
     private void NavigateToCertificates()
     {
         NavigationManager.NavigateTo("/certificates");
+    }
+
+    private void OnAccountSelected(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        selectedAccountId = value;
+        isNewAccountMode = value == "__new__";
+        newAccountEmailError = null;
+
+        if (!isNewAccountMode && !string.IsNullOrEmpty(value))
+        {
+            // 选中已有账户，预填邮箱（只读展示用）
+            var account = allAccounts.FirstOrDefault(a => a.Id.ToString() == value);
+            if (account != null)
+            {
+                newAccountEmail = GetAccountEmail(account);
+            }
+        }
+        else if (!isNewAccountMode)
+        {
+            newAccountEmail = "";
+        }
+    }
+
+    private void OnEnvironmentChanged(ChangeEventArgs e)
+    {
+        // 环境切换时清空账户选择，避免跨环境误用
+        selectedAccountId = null;
+        isNewAccountMode = false;
+        newAccountEmail = "";
+        newAccountEmailError = null;
+    }
+
+    private static string GetAccountEmail(AcmeAccount account)
+    {
+        var contact = account.Contact ?? string.Empty;
+        return contact.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+            ? contact["mailto:".Length..]
+            : contact;
+    }
+
+    private static string GetProviderDisplayName(DnsProviderType providerType) => providerType switch
+    {
+        DnsProviderType.Aliyun => "阿里云 DNS",
+        DnsProviderType.Cloudflare => "Cloudflare",
+        DnsProviderType.Dnspod => "DNSPod",
+        _ => providerType.ToString()
+    };
+
+    /// <summary>
+    /// 解析最终用于申请的 ACME 账户邮箱。
+    /// 优先级：新建邮箱输入 > 已有账户邮箱 > 配置默认值。
+    /// </summary>
+    private string ResolveAccountEmail()
+    {
+        if (isNewAccountMode && !string.IsNullOrWhiteSpace(newAccountEmail))
+        {
+            return newAccountEmail.Trim();
+        }
+
+        if (!string.IsNullOrEmpty(selectedAccountId))
+        {
+            var account = allAccounts.FirstOrDefault(a => a.Id.ToString() == selectedAccountId);
+            if (account != null)
+            {
+                return GetAccountEmail(account);
+            }
+        }
+
+        return configDefaultEmail;
+    }
+
+    private bool ValidateAccountEmail(out string error)
+    {
+        var email = ResolveAccountEmail();
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            error = "请选择已有 ACME 账户或输入新账户邮箱";
+            return false;
+        }
+
+        // 简单邮箱格式校验
+        if (!email.Contains('@') || email.Split('@').Length != 2
+            || string.IsNullOrWhiteSpace(email.Split('@')[0])
+            || string.IsNullOrWhiteSpace(email.Split('@')[1])
+            || !email.Split('@')[1].Contains('.'))
+        {
+            error = "邮箱格式不正确";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
     }
 
     private async Task HandleApply()
@@ -161,12 +389,24 @@
             IsApplying = true;
             StatusMessage = null;
 
+            // 校验域名
             if (string.IsNullOrWhiteSpace(applyModel.Domain))
             {
                 IsSuccess = false;
                 StatusMessage = "请选择已纳管域名";
                 return;
             }
+
+            // 校验 ACME 账户
+            if (!ValidateAccountEmail(out var emailError))
+            {
+                IsSuccess = false;
+                newAccountEmailError = emailError;
+                StatusMessage = emailError;
+                return;
+            }
+
+            var accountEmail = ResolveAccountEmail();
 
             // 检查同一域名是否已有证书正在申请中
             var hasPending = await CertificateRepository.HasPendingCertificateAsync(applyModel.Domain, applyModel.IsWildcard);
@@ -184,6 +424,7 @@
                 Domain = applyModel.Domain,
                 IsWildcard = applyModel.IsWildcard,
                 UseStaging = applyModel.UseStaging,
+                AccountEmail = accountEmail,
                 Status = CertificateStatus.Pending,
                 AcmeStatus = AcmeProcessStatus.Initializing,
                 AcmeStatusMessage = "等待处理",
@@ -209,7 +450,7 @@
             await scheduler.ScheduleJob(jobDetail, trigger);
 
             IsSuccess = true;
-            StatusMessage = $"证书申请已提交！证书ID: {certificate.Id}。您可以在证书列表中查看申请进度。";
+            StatusMessage = $"证书申请已提交！证书ID: {certificate.Id}。ACME 账户: {accountEmail}。您可以在证书列表中查看申请进度。";
             
             // 3秒后跳转到证书列表
             await Task.Delay(3000);

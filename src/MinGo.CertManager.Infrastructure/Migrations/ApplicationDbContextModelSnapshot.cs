@@ -259,6 +259,10 @@ namespace MinGo.CertManager.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AccountEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("AcmeStatus")
                         .HasColumnType("INTEGER");
 

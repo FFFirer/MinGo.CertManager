@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -84,6 +85,24 @@ public class AcmeAccountCache : IAcmeAccountCache
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新ACME账号最后使用时间失败: AccountId={AccountId}", accountId);
+        }
+    }
+
+    public async Task<IReadOnlyList<AcmeAccount>> GetAllAccountsAsync()
+    {
+        try
+        {
+            var accounts = await _dbContext.AcmeAccounts
+                .OrderByDescending(a => a.LastUsedAt)
+                .ToListAsync();
+
+            _logger.LogInformation("获取所有ACME账号: Count={Count}", accounts.Count);
+            return accounts;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取所有ACME账号失败");
+            return Array.Empty<AcmeAccount>();
         }
     }
 }

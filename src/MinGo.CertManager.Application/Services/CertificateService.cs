@@ -141,7 +141,8 @@ public class CertificateService : ICertificateService
                 certificate.IsWildcard,
                 _dnsProviderClient,
                 certificate.UseStaging,
-                zoneName);
+                zoneName,
+                certificate.AccountEmail);
 
             await _operationLogService.LogAsync(
                 logAction,

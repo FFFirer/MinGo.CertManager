@@ -44,7 +44,8 @@ public class AcmeService : IAcmeService
         bool isWildcard,
         IDomainProviderClient dnsService,
         bool useStaging = false,
-        string? zoneName = null)
+        string? zoneName = null,
+        string? accountEmail = null)
     {
         _logger.LogInformation("开始ACME证书申请: Domain={Domain}, IsWildcard={IsWildcard}, Environment={Environment}",
             domain, isWildcard, useStaging ? "Staging" : "Production");
@@ -54,8 +55,10 @@ public class AcmeService : IAcmeService
             var acmeUri = useStaging ? new Uri(_acmeSettings.LetsEncryptStagingUrl) : new Uri(_acmeSettings.LetsEncryptProductionUrl);
             _logger.LogInformation("连接到ACME服务器: {AcmeUri}", acmeUri);
 
-            var accountEmail = string.IsNullOrEmpty(_acmeSettings.AccountEmail) ? AcmeConstants.DefaultAccountEmail : _acmeSettings.AccountEmail;
-            var contact = $"mailto:{accountEmail}";
+            var email = string.IsNullOrEmpty(accountEmail)
+                ? (string.IsNullOrEmpty(_acmeSettings.AccountEmail) ? AcmeConstants.DefaultAccountEmail : _acmeSettings.AccountEmail)
+                : accountEmail;
+            var contact = $"mailto:{email}";
 
             var cachedAccount = await _accountCache.GetCachedAccountAsync(acmeUri.ToString(), contact);
 

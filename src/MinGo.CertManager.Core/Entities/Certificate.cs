@@ -8,6 +8,8 @@ public class Certificate
     public string Domain { get; set; } = string.Empty;
     public bool IsWildcard { get; set; }
     public bool UseStaging { get; set; }
+    /// <summary>ACME 账户邮箱标识；为空时使用部署配置默认值</summary>
+    public string? AccountEmail { get; set; }
     public CertificateStatus Status { get; set; }
     public AcmeProcessStatus AcmeStatus { get; set; }
     public string? AcmeStatusMessage { get; set; }

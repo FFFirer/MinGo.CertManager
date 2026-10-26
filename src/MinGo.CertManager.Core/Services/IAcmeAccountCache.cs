@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using MinGo.CertManager.Core.Entities;
 
@@ -28,4 +29,9 @@ public interface IAcmeAccountCache
     /// </summary>
     /// <param name="accountId">账户ID</param>
     Task UpdateLastUsedAsync(Guid accountId);
+
+    /// <summary>
+    /// 获取所有已缓存的ACME账户，按最后使用时间降序
+    /// </summary>
+    Task<IReadOnlyList<AcmeAccount>> GetAllAccountsAsync();
 }

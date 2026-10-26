@@ -13,12 +13,14 @@ public interface IAcmeService
     /// <param name="dnsService">DNS 提供商客户端</param>
     /// <param name="useStaging">是否使用测试环境</param>
     /// <param name="zoneName">已购域名（Zone）；提供时优先用于 DNS 记录定位</param>
+    /// <param name="accountEmail">ACME 账户邮箱；为空时使用部署配置默认值</param>
     Task<CertificateResult> RequestCertificateAsync(
         string domain,
         bool isWildcard,
         IDomainProviderClient dnsService,
         bool useStaging = false,
-        string? zoneName = null);
+        string? zoneName = null,
+        string? accountEmail = null);
 
     /// <summary>
     /// 清理资源
